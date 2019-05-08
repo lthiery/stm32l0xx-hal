@@ -123,17 +123,35 @@ pub trait Pins<USART> {
     fn setup(&self);
 }
 
+#[cfg(feature = "stm32l0x1")]
 impl Pins<USART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
     fn setup(&self) {
-        self.0.set_alt_mode(AltMode::AF6); //AltMode::USART1_3);
-        self.1.set_alt_mode(AltMode::AF6); //AltMode::USART1_3);
+        self.0.set_alt_mode(AltMode::AF6);
+        self.1.set_alt_mode(AltMode::AF6);
     }
 }
 
+#[cfg(feature = "stm32l0x2")]
+impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
+    fn setup(&self) {
+        self.0.set_alt_mode(AltMode::AF4);
+        self.1.set_alt_mode(AltMode::AF4);
+    }
+}
+
+#[cfg(feature = "stm32l0x1")]
 impl Pins<USART2> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
     fn setup(&self) {
-        self.0.set_alt_mode(AltMode::AF4); //AltMode::USART1_3);
-        self.1.set_alt_mode(AltMode::AF4); //AltMode::USART1_3);
+        self.0.set_alt_mode(AltMode::AF4);
+        self.1.set_alt_mode(AltMode::AF4);
+    }
+}
+
+#[cfg(feature = "stm32l0x2")]
+impl Pins<USART2> for (PA14<Input<Floating>>, PA15<Input<Floating>>) {
+    fn setup(&self) {
+        self.0.set_alt_mode(AltMode::AF4);
+        self.1.set_alt_mode(AltMode::AF4);
     }
 }
 
