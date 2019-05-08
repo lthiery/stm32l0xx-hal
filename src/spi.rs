@@ -1,4 +1,8 @@
+#[cfg(feature = "stm32l0x1")]
 use crate::gpio::gpioa::{PA5, PA6, PA7};
+#[cfg(feature = "stm32l0x2")]
+use crate::gpio::gpioa::{PB3, PA6, PA7};
+
 use crate::gpio::{Floating, Input};
 use crate::hal;
 use crate::pac::SPI1;
@@ -42,6 +46,9 @@ pub struct NoMiso;
 /// A filler type for when the Mosi pin is unnecessary
 pub struct NoMosi;
 
+
+
+
 macro_rules! pins {
     ($($SPIX:ty: SCK: [$($SCK:ty),*] MISO: [$($MISO:ty),*] MOSI: [$($MOSI:ty),*])+) => {
         $(
@@ -58,11 +65,30 @@ macro_rules! pins {
     }
 }
 
+#[cfg(feature = "stm32l0x1")]
 pins! {
     SPI1:
         SCK: [
             NoSck,
             PA5<Input<Floating>>
+        ]
+        MISO: [
+            NoMiso,
+            PA6<Input<Floating>>
+        ]
+        MOSI: [
+            NoMosi,
+            PA7<Input<Floating>>
+        ]
+}
+
+
+#[cfg(feature = "stm32l0x2")]
+pins! {
+    SPI1:
+        SCK: [
+            NoSck,
+            PB3<Input<Floating>>
         ]
         MISO: [
             NoMiso,
