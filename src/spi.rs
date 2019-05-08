@@ -1,7 +1,7 @@
 #[cfg(feature = "stm32l0x1")]
 use crate::gpio::gpioa::{PA5, PA6, PA7};
 #[cfg(feature = "stm32l0x2")]
-use crate::gpio::gpioa::PA6, PA7};
+use crate::gpio::gpioa::{PA6, PA7};
 #[cfg(feature = "stm32l0x2")]
 use crate::gpio::gpiob::PB3;
 
