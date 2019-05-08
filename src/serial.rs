@@ -2,7 +2,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ptr;
 
-use crate::gpio::gpioa::{PA10, PA2, PA3, PA9};
+use crate::gpio::gpioa::{PA10, PA2, PA3, PA9, PA14, PA15};
 use crate::gpio::{AltMode, Floating, Input};
 use crate::hal;
 use crate::hal::prelude::*;
