@@ -177,7 +177,7 @@ macro_rules! spi {
                     #[allow(unused)]
                     spi.cr1.write(|w| unsafe {
                         w.cpha()
-                            .bit(mode.phase == Phase::CaptureOnSecondTransition)
+                            .bit(mode.phase != Phase::CaptureOnSecondTransition)
                             .cpol()
                             .bit(mode.polarity == Polarity::IdleHigh)
                             .mstr()

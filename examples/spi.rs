@@ -29,6 +29,6 @@ fn main() -> ! {
         .spi((sck, miso, mosi), spi::MODE_0, 100_000.hz(), &mut rcc);
 
     loop {
-        spi.write(&[0xAB, 0xAB]).unwrap();
+        spi.write(&[0xAB, 0xBE]).unwrap();
     }
 }
