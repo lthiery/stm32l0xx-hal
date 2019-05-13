@@ -108,12 +108,14 @@ pins! {
         MISO: [
             [NoMiso, None],
             [PA6<Input<Floating>>, AltMode::AF0],
-            [PA11<Input<Floating>>, AltMode::AF0]
+            [PA11<Input<Floating>>, AltMode::AF0],
+            [PB4<Input<Floating>>, AltMode::AF0]
         ]
         MOSI: [
             [NoMosi, None],
             [PA7<Input<Floating>>, AltMode::AF0],
-            [PA12<Input<Floating>>, AltMode::AF0]
+            [PA12<Input<Floating>>, AltMode::AF0],
+            [PB5<Input<Floating>>, AltMode::AF0]
         ]
 }
 
