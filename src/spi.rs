@@ -43,7 +43,7 @@ where
     MISO: PinMiso<SPI>,
     MOSI: PinMosi<SPI>,
 {
-    fn setup(&self){
+    fn setup(&self) {
         self.0.setup();
         self.1.setup();
         self.2.setup();
@@ -53,29 +53,23 @@ where
 /// A filler type for when the SCK pin is unnecessary
 pub struct NoSck;
 impl NoSck {
-    fn set_alt_mode(&self, some: Option<u32>){
-
-    }
+    fn set_alt_mode(&self, some: Option<u32>) {}
 }
 /// A filler type for when the Miso pin is unnecessary
 pub struct NoMiso;
 impl NoMiso {
-    fn set_alt_mode(&self, some: Option<u32>){
-        
-    }
+    fn set_alt_mode(&self, some: Option<u32>) {}
 }
 /// A filler type for when the Mosi pin is unnecessary
 pub struct NoMosi;
 impl NoMosi {
-    fn set_alt_mode(&self, some: Option<u32>){
-        
-    }
+    fn set_alt_mode(&self, some: Option<u32>) {}
 }
 
 macro_rules! pins {
-    ($($SPIX:ty: 
-        SCK: [$([$SCK:ty, $ALTMODESCK:path]),*] 
-        MISO: [$([$MISO:ty, $ALTMODEMISO:path]),*] 
+    ($($SPIX:ty:
+        SCK: [$([$SCK:ty, $ALTMODESCK:path]),*]
+        MISO: [$([$MISO:ty, $ALTMODEMISO:path]),*]
         MOSI: [$([$MOSI:ty, $ALTMODEMOSI:path]),*])+) => {
         $(
             $(
@@ -103,7 +97,6 @@ macro_rules! pins {
     }
 }
 
-
 #[cfg(feature = "stm32l0x2")]
 pins! {
     SPI1:
@@ -123,7 +116,6 @@ pins! {
             [PA12<Input<Floating>>, AltMode::AF0]
         ]
 }
-
 
 #[derive(Debug)]
 pub struct Spi<SPI, PINS> {

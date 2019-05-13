@@ -190,5 +190,3 @@ timers! {
     TIM3: (tim3, tim3en, tim3rst, apb1enr, apb1rstr, apb1_tim_clk),
     TIM21: (tim21, tim21en, tim21rst, apb2enr, apb2rstr, apb2_tim_clk),
 }
-
-

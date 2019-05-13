@@ -35,7 +35,7 @@ fn main() -> ! {
 
     // core::fmt::Write is implemented for tx.
     //writeln!(tx, "Hello, world!").unwrap();
-    
+
     loop {
         // Echo what is received on the serial link.
         let received = block!(rx.read()).unwrap();

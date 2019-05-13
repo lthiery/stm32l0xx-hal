@@ -8,7 +8,6 @@ extern crate panic_halt;
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config, spi};
 
-
 #[entry]
 fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
