@@ -14,6 +14,8 @@ pub use hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 /// SPI error
 #[derive(Debug)]
 pub enum Error {
+    Busy,
+    FrameError,
     /// Overrun occurred
     Overrun,
     /// Mode fault occurred
@@ -153,7 +155,7 @@ macro_rules! spi {
                     rcc.rb.$apbXenr.modify(|_, w| w.$spiXen().set_bit());
 
                     // disable SS output
-                    spi.cr2.write(|w| w.ssoe().clear_bit());
+                    spi.cr2.write(|w| w.ssoe().set_bit());
 
                     let spi_freq = freq.into().0;
                     let apb_freq = rcc.clocks.$pclkX().0;
