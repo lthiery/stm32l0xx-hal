@@ -1,4 +1,3 @@
-#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
@@ -69,12 +68,12 @@ fn TIM2() {
 
             // Change the LED state on each interrupt.
             if let Some(ref mut led) = LED.borrow(cs).borrow_mut().deref_mut() {
-                if *STATE {
+                if STATE {
                     led.set_low();
-                    *STATE = false;
+                    STATE = false;
                 } else {
                     led.set_high();
-                    *STATE = true;
+                    STATE = true;
                 }
             }
         }
