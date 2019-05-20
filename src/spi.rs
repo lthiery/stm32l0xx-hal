@@ -121,6 +121,23 @@ pins! {
         ]
 }
 
+#[cfg(feature = "stm32l0x1")]
+pins! {
+    SPI1:
+        SCK: [
+            [NoSck, None],
+            [PA5<Input<Floating>>, AltMode::AF0]
+        ]
+        MISO: [
+            [NoMiso, None],
+            [PA6<Input<Floating>>, AltMode::AF0]
+        ]
+        MOSI: [
+            [NoMosi, None],
+            [PA7<Input<Floating>>, AltMode::AF0]
+        ]
+}
+
 #[derive(Debug)]
 pub struct Spi<SPI, PINS> {
     spi: SPI,
