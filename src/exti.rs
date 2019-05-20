@@ -2,6 +2,11 @@
 use crate::bb;
 use crate::pac::EXTI;
 
+pub enum Port {
+    A,
+    B,
+    C
+}
 
 
 pub enum TriggerEdge {
@@ -11,14 +16,14 @@ pub enum TriggerEdge {
 }
 
 pub trait ExtiExt {
-    fn listen(&self, line: u8, edge: TriggerEdge);
+    fn listen(&self, port: Port, line: u8, edge: TriggerEdge);
     fn unlisten(&self, line: u8);
     fn pend_interrupt(&self, line: u8);
     fn clear_irq(&self, line: u8);
 }
 
 impl ExtiExt for EXTI {
-    fn listen(&self, line: u8, edge: TriggerEdge) {
+    fn listen(&self, port: Port, line: u8, edge: TriggerEdge) {
         #[cfg(feature = "stm32l0x1")]
         assert!(line < 24);
         #[cfg(feature = "stm32l0x2")]
@@ -67,6 +72,11 @@ impl ExtiExt for EXTI {
 
     fn clear_irq(&self, line: u8) {
         assert!(line < 24);
-        bb::set(&self.pr, line);
+
+        self.pr.write(|mut w|
+            unsafe{
+                w.bits(0b1<<line)
+            }
+        );
     }
 }

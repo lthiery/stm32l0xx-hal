@@ -6,8 +6,10 @@ use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
 use nb;
 use void::Void;
-
+#[cfg(feature = "stm32l0x1")]
 use crate::pac::{TIM2, TIM21, TIM22, TIM3};
+#[cfg(feature = "stm32l0x2")]
+use crate::pac::{TIM2, TIM21, TIM3};
 use crate::rcc::{Clocks, Rcc};
 use crate::time::Hertz;
 
