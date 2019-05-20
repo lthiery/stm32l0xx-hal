@@ -2,6 +2,8 @@
 use crate::bb;
 use crate::pac::EXTI;
 
+
+
 pub enum TriggerEdge {
     Rising,
     Falling,
@@ -17,16 +19,38 @@ pub trait ExtiExt {
 
 impl ExtiExt for EXTI {
     fn listen(&self, line: u8, edge: TriggerEdge) {
+        #[cfg(feature = "stm32l0x1")]
         assert!(line < 24);
-        match edge {
-            TriggerEdge::Rising => bb::set(&self.rtsr, line),
-            TriggerEdge::Falling => bb::set(&self.ftsr, line),
-            TriggerEdge::All => {
-                bb::set(&self.rtsr, line);
-                bb::set(&self.ftsr, line);
+        #[cfg(feature = "stm32l0x2")]
+        assert!(line < 17);
+
+        let bm: u32 = 0xFFFF;//0b1<<line;
+
+
+        unsafe {
+            match edge {
+                TriggerEdge::Rising => self.rtsr.write(|mut w|
+                    w.bits(bm)
+                ),
+                TriggerEdge::Falling => self.ftsr.write(|mut w|
+                    w.bits(bm)
+                ),
+                TriggerEdge::All => {
+                    self.rtsr.write(| mut w|
+                        w.bits(bm)
+                    );
+                    self.ftsr.write(|mut w|
+                        w.bits(bm)
+                    );
+                    }
             }
+
+            self.imr.modify(|_, mut w|
+                w.bits(bm)
+            );
         }
-        bb::set(&self.imr, line);
+       
+
     }
 
     fn unlisten(&self, line: u8) {

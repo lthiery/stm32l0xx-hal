@@ -132,7 +132,7 @@ impl Pins<USART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
 }
 
 #[cfg(feature = "stm32l0x2")]
-impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
+impl Pins<USART2> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
     fn setup(&self) {
         self.0.set_alt_mode(AltMode::AF4);
         self.1.set_alt_mode(AltMode::AF4);

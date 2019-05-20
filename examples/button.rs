@@ -17,22 +17,17 @@ fn main() -> ! {
 
     // Acquire the GPI0A and GPIOB peripherals. This also enables the clock for
     // GPIOA and GPIOB in the RCC register.
-    let gpioa = dp.GPIOA.split(&mut rcc);
     let gpiob = dp.GPIOB.split(&mut rcc);
 
-    // Configure PA0 as input.
-    let button = gpioa.pa0.into_pull_up_input();
+    // Configure PB2 as input.
+    let button = gpiob.pb2.into_pull_up_input();
 
-    // Configure PB6 as output.
-    let mut led = gpiob.pb6.into_push_pull_output();
-
-    // Get the delay provider.
-    let mut delay = cp.SYST.delay(rcc.clocks);
+    // Configure PB5 as output.
+    let mut led = gpiob.pb5.into_push_pull_output();
 
     loop {
         if button.is_high() {
             led.set_high();
-            delay.delay(500.ms());
         } else {
             led.set_low();
         }

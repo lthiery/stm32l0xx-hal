@@ -18,11 +18,11 @@ use stm32l0xx_hal::{
 };
 
 static INT: Mutex<RefCell<Option<EXTI>>> = Mutex::new(RefCell::new(None));
-static LED: Mutex<RefCell<Option<gpiob::PB6<Output<PushPull>>>>> = Mutex::new(RefCell::new(None));
+static LED: Mutex<RefCell<Option<gpiob::PB5<Output<PushPull>>>>> = Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {
-    let dp = pac::Peripherals::take().unwrap();
+    let dp = stm32l0xx_hal::stm32::Peripherals::take().unwrap();
     let cp = cortex_m::Peripherals::take().unwrap();
 
     // Configure the clock.
@@ -33,11 +33,14 @@ fn main() -> ! {
     let gpiob = dp.GPIOB.split(&mut rcc);
 
     // Configure PB6 as output.
-    let led = gpiob.pb6.into_push_pull_output();
+    let led = gpiob.pb5.into_push_pull_output();
+
+    // Configure PB2 as input.
+    let button = gpiob.pb2.into_pull_up_input();
 
     // Configure the external interrupt on the falling edge for the pin 0.
     let exti = dp.EXTI;
-    exti.listen(0, TriggerEdge::Falling);
+    exti.listen(2, TriggerEdge::Falling);
 
     // Store the external interrupt and LED in mutex reffcells to make them
     // available from the interrupt.
@@ -46,16 +49,28 @@ fn main() -> ! {
         *LED.borrow(cs).borrow_mut() = Some(led);
     });
 
+    dp.SYSCFG_COMP.exticr1.write(|mut w|
+        unsafe {
+            // 1 = B
+            w
+            .exti2().bits(0b1)
+            .exti2().bits(0b1)
+            .exti1().bits(0b1)
+            .exti0().bits(0b1)
+
+        }
+    );
+
     // Enable the external interrupt in the NVIC.
     let mut nvic = cp.NVIC;
-    nvic.enable(Interrupt::EXTI0_1);
+    nvic.enable(Interrupt::EXTI2_3);
 
     loop {
         asm::wfi();
     }
 }
 
-fn EXTI0_1() {
+fn EXTI2_3() {
     // Keep the LED state.
     static mut STATE: bool = false;
 
