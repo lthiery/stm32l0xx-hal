@@ -161,15 +161,12 @@ macro_rules! timers {
                         self.tim.arr.write(|w| w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into()));
                     }
 
-<<<<<<< HEAD
                     self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
                     #[cfg(feature = "stm32l0x1")]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap() ) });
                     #[cfg(feature = "stm32l0x2")]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into() ) });
 
-=======
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 
                     self.tim.cr1.modify(|_, w| w.urs().set_bit());
                     self.tim.cr1.modify(|_, w| w.cen().set_bit());
@@ -202,8 +199,5 @@ timers! {
     TIM2: (tim2, tim2en, tim2rst, apb1enr, apb1rstr, apb1_tim_clk),
     TIM3: (tim3, tim3en, tim3rst, apb1enr, apb1rstr, apb1_tim_clk),
     TIM21: (tim21, tim21en, tim21rst, apb2enr, apb2rstr, apb2_tim_clk),
-<<<<<<< HEAD
-=======
     //TODO: figure out why I had to remove TIM22 from stm32l0x2 (lthiery)
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 }

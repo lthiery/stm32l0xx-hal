@@ -2,11 +2,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ptr;
 
-<<<<<<< HEAD
-use crate::gpio::gpioa::{PA10, PA14, PA15, PA2, PA3, PA9};
-=======
 use crate::gpio::gpioa::*;
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 use crate::gpio::{AltMode, Floating, Input};
 use crate::hal;
 use crate::hal::prelude::*;
@@ -136,11 +132,8 @@ impl Pins<USART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
 }
 
 #[cfg(feature = "stm32l0x2")]
-<<<<<<< HEAD
-impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
-=======
+
 impl Pins<USART2> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
     fn setup(&self) {
         self.0.set_alt_mode(AltMode::AF4);
         self.1.set_alt_mode(AltMode::AF4);

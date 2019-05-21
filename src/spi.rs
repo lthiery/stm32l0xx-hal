@@ -55,29 +55,17 @@ where
 /// A filler type for when the SCK pin is unnecessary
 pub struct NoSck;
 impl NoSck {
-<<<<<<< HEAD
-    fn set_alt_mode(&self, some: Option<u32>) {}
-=======
     fn set_alt_mode(&self, _some: Option<u32>) {}
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 }
 /// A filler type for when the Miso pin is unnecessary
 pub struct NoMiso;
 impl NoMiso {
-<<<<<<< HEAD
-    fn set_alt_mode(&self, some: Option<u32>) {}
-=======
     fn set_alt_mode(&self, _some: Option<u32>) {}
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 }
 /// A filler type for when the Mosi pin is unnecessary
 pub struct NoMosi;
 impl NoMosi {
-<<<<<<< HEAD
-    fn set_alt_mode(&self, some: Option<u32>) {}
-=======
     fn set_alt_mode(&self, _some: Option<u32>) {}
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 }
 
 macro_rules! pins {
@@ -130,8 +118,6 @@ pins! {
             [PA7<Input<Floating>>, AltMode::AF0],
             [PA12<Input<Floating>>, AltMode::AF0],
             [PB5<Input<Floating>>, AltMode::AF0]
-<<<<<<< HEAD
-=======
         ]
 }
 
@@ -149,7 +135,6 @@ pins! {
         MOSI: [
             [NoMosi, None],
             [PA7<Input<Floating>>, AltMode::AF0]
->>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
         ]
 }
 
