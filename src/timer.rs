@@ -153,12 +153,13 @@ macro_rules! timers {
                     let freq = timeout.into().0;
                     let ticks = self.clocks.$timclk().0 / freq;
                     let psc = u16((ticks - 1) / (1 << 16)).unwrap();
-
-                    self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
-                    #[cfg(feature = "stm32l0x1")]
-                    self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap() ) });
-                    #[cfg(feature = "stm32l0x2")]
-                    self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into() ) });
+                    unsafe { 
+                        self.tim.psc.write(|w| w.psc().bits(psc));
+                        #[cfg(feature = "stm32l0x1")]
+                        self.tim.arr.write(|w| w.arr().bits( u16(ticks / u32(psc + 1)).unwrap()));
+                        #[cfg(feature = "stm32l0x2")]
+                        self.tim.arr.write(|w| w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into()));
+                    }
 
 
                     self.tim.cr1.modify(|_, w| w.urs().set_bit());

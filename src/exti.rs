@@ -23,34 +23,33 @@ pub trait ExtiExt {
 }
 
 impl ExtiExt for EXTI {
-    fn listen(&self, port: Port, line: u8, edge: TriggerEdge) {
+    fn listen(&self, _port: Port, line: u8, edge: TriggerEdge) {
         #[cfg(feature = "stm32l0x1")]
         assert!(line < 24);
         #[cfg(feature = "stm32l0x2")]
         assert!(line < 17);
 
-        let bm: u32 = 0xFFFF;//0b1<<line;
-
+        let bm: u32 = 0b1<<line;
 
         unsafe {
             match edge {
-                TriggerEdge::Rising => self.rtsr.write(|mut w|
+                TriggerEdge::Rising => self.rtsr.modify(|_, w|
                     w.bits(bm)
                 ),
-                TriggerEdge::Falling => self.ftsr.write(|mut w|
+                TriggerEdge::Falling => self.ftsr.modify(|_, w|
                     w.bits(bm)
                 ),
                 TriggerEdge::All => {
-                    self.rtsr.write(| mut w|
+                    self.rtsr.modify(|_, w|
                         w.bits(bm)
                     );
-                    self.ftsr.write(|mut w|
+                    self.ftsr.modify(|_, w|
                         w.bits(bm)
                     );
                     }
             }
 
-            self.imr.modify(|_, mut w|
+            self.imr.modify(|_, w|
                 w.bits(bm)
             );
         }
@@ -73,7 +72,7 @@ impl ExtiExt for EXTI {
     fn clear_irq(&self, line: u8) {
         assert!(line < 24);
 
-        self.pr.write(|mut w|
+        self.pr.write(|w|
             unsafe{
                 w.bits(0b1<<line)
             }

@@ -241,14 +241,14 @@ macro_rules! usart {
                             })
                     });
 
-                    usart.cr2.write(|w| unsafe {
+                    usart.cr2.write(|w| 
                         w.stop().bits(match config.stopbits {
                             StopBits::STOP1 => 0b00,
                             StopBits::STOP0P5 => 0b01,
                             StopBits::STOP2 => 0b10,
                             StopBits::STOP1P5 => 0b11,
                         })
-                    });
+                    );
                     Ok(Serial {
                         usart,
                         tx: Tx { _usart: PhantomData },
@@ -289,7 +289,7 @@ macro_rules! usart {
                 /// Clears interrupt flag
                 pub fn clear_irq(&mut self, event: Event) {
                     if let Event::Rxne = event {
-                        self.usart.rqr.write(|w| unsafe { w.rxfrq().discard() })
+                        self.usart.rqr.write(|w| w.rxfrq().discard())
                     }
                 }
 

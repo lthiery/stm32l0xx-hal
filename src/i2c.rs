@@ -33,7 +33,7 @@ pub enum Error {
 macro_rules! i2c {
     ($I2CX:ident, $i2cx:ident, $i2cxen:ident, $i2crst:ident, $I2cxExt:ident) => {
         impl<PINS> I2c<$I2CX, PINS> {
-            pub fn $i2cx(i2c: $I2CX, pins: PINS, speed: Hertz, rcc: &mut Rcc) -> Self
+            pub fn $i2cx(i2c: $I2CX, pins: PINS, _speed: Hertz, _rcc: &mut Rcc) -> Self
             where
                 PINS: Pins<$I2CX>,
             {
@@ -120,12 +120,13 @@ macro_rules! i2c {
                 (self.i2c, self.pins)
             }
 
+            #[allow(dead_code)]
             fn send_byte(&self, byte: u8) -> Result<(), Error> {
                 // Wait until we're ready for sending
                 while self.i2c.isr.read().txe().bit_is_clear() {}
 
                 // Push out a byte of data
-                self.i2c.txdr.write(|w| unsafe { w.txdata().bits(byte) });
+                self.i2c.txdr.write(|w| w.txdata().bits(byte));
 
                 // While until byte is transferred
                 while {
@@ -142,6 +143,7 @@ macro_rules! i2c {
                 Ok(())
             }
 
+            #[allow(dead_code)]
             fn recv_byte(&self) -> Result<u8, Error> {
                 while self.i2c.isr.read().rxne().bit_is_clear() {}
                 //let value = self.i2c.dr.read().bits() as u8;
@@ -169,7 +171,7 @@ macro_rules! i2c {
         impl<PINS> Write for I2c<$I2CX, PINS> {
             type Error = Error;
 
-            fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Self::Error> {
+            fn write(&mut self, _addr: u8, _bytes: &[u8]) -> Result<(), Self::Error> {
                 // Send a START condition
                 self.i2c.cr2.modify(|_, w| w.start().set_bit());
 
@@ -212,7 +214,7 @@ macro_rules! i2c {
         impl<PINS> Read for I2c<$I2CX, PINS> {
             type Error = Error;
 
-            fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
+            fn read(&mut self, _addr: u8, _buffer: &mut [u8]) -> Result<(), Self::Error> {
                 // Send a START condition and set ACK bit
                 // self.i2c
                 //     .cr1
