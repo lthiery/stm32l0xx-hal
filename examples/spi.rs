@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
@@ -43,16 +43,16 @@ fn main() -> ! {
     write!(tx, "Hello, world!\r\n").unwrap();
 
 
-/*    let sck = gpioa.pa5;
+    let sck = gpioa.pa5;
     let miso = gpioa.pa11;
     let mosi = gpioa.pa12;
     let mut nss = gpioa.pa2.into_push_pull_output();
-    */
+    
     let gpiob = dp.GPIOB.split(&mut rcc);
-    let sck = gpiob.pb3;
-    let miso = gpioa.pa6;
-    let mosi = gpioa.pa7;
-    let mut nss = gpioa.pa15.into_push_pull_output();
+    // let sck = gpiob.pb3;
+    // let miso = gpioa.pa6;
+    // let mosi = gpioa.pa7;
+    // let mut nss = gpioa.pa15.into_push_pull_output();
 
     nss.set_high();
 
@@ -73,8 +73,10 @@ fn main() -> ! {
 }
 
 fn read_register(
-    nss: &mut stm32l0xx_hal::gpio::gpioa::PA15<Output<PushPull>>,
-    spi: &mut hal::spi::Spi<SPI1, (PB3<Input<Floating>>, PA6<Input<Floating>>, PA7<Input<Floating>>)>, 
+    nss: &mut stm32l0xx_hal::gpio::gpioa::PA2<Output<PushPull>>,
+    spi: &mut hal::spi::Spi<SPI1, (PA5<Input<Floating>>, PA11<Input<Floating>>, PA12<Input<Floating>>)>, 
+
+    //spi: &mut hal::spi::Spi<SPI1, (PB3<Input<Floating>>, PA6<Input<Floating>>, PA7<Input<Floating>>)>, 
     addr: u8) -> u8{
 
 

@@ -1,3 +1,4 @@
+
 #![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
@@ -22,8 +23,8 @@ fn main() -> ! {
     // the RCC register.
     let gpioa = dp.GPIOA.split(&mut rcc);
 
-    let tx_pin = gpioa.pa9;
-    let rx_pin = gpioa.pa10;
+    let tx_pin = gpioa.pa2;
+    let rx_pin = gpioa.pa3;
 
     // Configure the serial peripheral.
     let serial = dp

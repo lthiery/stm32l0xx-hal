@@ -1,3 +1,4 @@
+
 //! Timers
 use crate::hal::timer::{CountDown, Periodic};
 use cast::{u16, u32};
@@ -5,8 +6,10 @@ use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
 use nb;
 use void::Void;
-
+#[cfg(feature = "stm32l0x1")]
 use crate::pac::{TIM2, TIM21, TIM22, TIM3};
+#[cfg(feature = "stm32l0x2")]
+use crate::pac::{TIM2, TIM21, TIM3};
 use crate::rcc::{Clocks, Rcc};
 use crate::time::Hertz;
 
@@ -150,13 +153,23 @@ macro_rules! timers {
                     let freq = timeout.into().0;
                     let ticks = self.clocks.$timclk().0 / freq;
                     let psc = u16((ticks - 1) / (1 << 16)).unwrap();
+                    unsafe { 
+                        self.tim.psc.write(|w| w.psc().bits(psc));
+                        #[cfg(feature = "stm32l0x1")]
+                        self.tim.arr.write(|w| w.arr().bits( u16(ticks / u32(psc + 1)).unwrap()));
+                        #[cfg(feature = "stm32l0x2")]
+                        self.tim.arr.write(|w| w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into()));
+                    }
 
+<<<<<<< HEAD
                     self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
                     #[cfg(feature = "stm32l0x1")]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap() ) });
                     #[cfg(feature = "stm32l0x2")]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into() ) });
 
+=======
+>>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 
                     self.tim.cr1.modify(|_, w| w.urs().set_bit());
                     self.tim.cr1.modify(|_, w| w.cen().set_bit());
@@ -189,4 +202,8 @@ timers! {
     TIM2: (tim2, tim2en, tim2rst, apb1enr, apb1rstr, apb1_tim_clk),
     TIM3: (tim3, tim3en, tim3rst, apb1enr, apb1rstr, apb1_tim_clk),
     TIM21: (tim21, tim21en, tim21rst, apb2enr, apb2rstr, apb2_tim_clk),
+<<<<<<< HEAD
+=======
+    //TODO: figure out why I had to remove TIM22 from stm32l0x2 (lthiery)
+>>>>>>> d3ef1a1e552ab15e1c183e1cf6ea77fd759784a4
 }

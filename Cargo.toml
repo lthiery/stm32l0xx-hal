@@ -17,11 +17,12 @@ keywords = [
     "stm32l0xx",
     "hal",
 ]
+
 license = "0BSD"
 name = "stm32l0xx-hal"
 readme = "README.md"
 repository = "https://github.com/stm32-rs/stm32l0xx-hal"
-version = "0.1.1"
+version = "0.1.2"
 
 [package.metadata.docs.rs]
 features = ["stm32l0x1", "stm32l0x2", "rt"]
@@ -29,7 +30,7 @@ features = ["stm32l0x1", "stm32l0x2", "rt"]
 [dependencies]
 embedded-hal = { version = "0.2.2", features = ["unproven"] }
 cortex-m = {version = "0.5.8", features = ["const-fn"] }
-cortex-m-rt = "0.6.8"
+cortex-m-rt = "0.6.7"
 cortex-m-semihosting = "0.3.2"
 cortex-m-rtfm = "0.4.3"
 void = { version = "1.0.2", default-features = false }
@@ -40,6 +41,7 @@ nb = "0.1.2"
 version = "0.7.0"
 
 [dev-dependencies]
+cortex-m-semihosting = "0.3.2"
 panic-halt = "0.2.0"
 panic-semihosting = "0.5.1"
 
@@ -52,7 +54,7 @@ stm32l0x2 = ["stm32l0/stm32l0x2"]
 codegen-units = 1
 incremental = false
 debug = true
-opt-level = "s"
+opt-level = "z"
 
 [profile.release]
 codegen-units = 1
@@ -67,3 +69,11 @@ required-features = ["rt"]
 [[example]]
 name = "timer_interrupt_rtfm"
 required-features = ["rt"]
+
+[[example]]
+name = "adc_pwm"
+required-features = ["stm32l0x1"]
+
+[[example]]
+name = "pwm"
+required-features = ["stm32l0x1"]
