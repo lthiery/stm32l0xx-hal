@@ -20,7 +20,7 @@ const APP: () = {
 
         // Configure the clock.
         let mut rcc = device.RCC.freeze(Config::hsi16());
-        rcc.enable(hal::rcc::Peripheral::SYSCFG);
+
         // Acquire the GPIOB peripheral. This also enables the clock for GPIOB in
         // the RCC register.
         let gpiob = device.GPIOB.split(&mut rcc);
@@ -31,18 +31,15 @@ const APP: () = {
         // Configure PB2 as input.
         let button = gpiob.pb2.into_pull_up_input();
 
-        // needs to be cleaned up as part of a better EXTI driver
-        let syscfg_comp = &device.SYSCFG_COMP;
-        syscfg_comp.exticr1.write(|w|
-            unsafe {
-                w
-                .exti2().bits(0b1)
-            }
-        );
-
-        // Configure the external interrupt on the falling edge for the pin 2.
         let exti = device.EXTI;
-        exti.listen(hal::exti::Port::B, 2, TriggerEdge::Falling);
+        // Configure the external interrupt on the falling edge for the pin 2.
+        exti.listen(
+            &mut rcc,
+            &mut device.SYSCFG_COMP,
+            button.port,
+            button.i,
+            TriggerEdge::Falling,
+        );
 
         // Return the initialised resources.
         init::LateResources {
