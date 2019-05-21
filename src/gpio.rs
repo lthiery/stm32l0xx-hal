@@ -59,21 +59,19 @@ pub(crate) enum AltMode {
     AF5 = 5,
     AF6 = 6,
     AF7 = 7,
-    // TODO: Following Alt Modes are incorrect
-    SYSTEM = 8,
-    TIM2 = 9,
-    TIM3_5 = 10,
-    TIM9_11 = 11,
-    I2C = 12,
-    SPI1_2 = 13,
-    SPI3 = 14,
-    USART1_3 = 15,
-    UART4_5 = 16,
-    USB = 17,
-    LCD = 18,
-    FSMC = 19,
-    RI = 20,
-    EVENTOUT = 21,
+}
+
+#[derive(Copy, Clone)]
+pub enum Port {
+    PA,
+    PB,
+    PC,
+    PD
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Foo,
 }
 
 macro_rules! gpio {
@@ -84,12 +82,13 @@ macro_rules! gpio {
         pub mod $gpiox {
             use core::marker::PhantomData;
 
-            use crate::hal::digital::{toggleable, InputPin, OutputPin, StatefulOutputPin};
+            use crate::hal::digital::v2::{toggleable, InputPin, OutputPin, StatefulOutputPin};
+
             use crate::pac::$GPIOX;
             use crate::rcc::Rcc;
             use super::{
                 Floating, GpioExt, Input, OpenDrain, Output, Speed,
-                PullDown, PullUp, PushPull, AltMode, Analog
+                PullDown, PullUp, PushPull, AltMode, Analog, Port
             };
 
             /// GPIO parts
@@ -108,7 +107,11 @@ macro_rules! gpio {
 
                     Parts {
                         $(
-                            $pxi: $PXi { _mode: PhantomData },
+                            $pxi: $PXi {
+                                 i: $i,
+                                port: Port::$PXx,
+                                _mode: PhantomData 
+                            },
                         )+
                     }
                 }
@@ -116,60 +119,72 @@ macro_rules! gpio {
 
             /// Partially erased pin
             pub struct $PXx<MODE> {
-                i: u8,
+                pub i: u8,
+                pub port: Port,
                 _mode: PhantomData<MODE>,
             }
 
             impl<MODE> OutputPin for $PXx<Output<MODE>> {
-                fn set_high(&mut self) {
+                type Error = super::Error;
+
+                fn set_high(&mut self) -> Result<(), Self::Error> {
                     // NOTE(unsafe) atomic write to a stateless register
                     unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << self.i)) }
+                    Ok(())
                 }
 
-                fn set_low(&mut self) {
+                fn set_low(&mut self) -> Result<(), Self::Error> {
                     // NOTE(unsafe) atomic write to a stateless register
                     unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << (self.i + 16))) }
+                    Ok(())
                 }
             }
 
             impl<MODE> StatefulOutputPin for $PXx<Output<MODE>> {
-                fn is_set_high(&self) -> bool {
-                    !self.is_set_low()
+                fn is_set_high(&self) ->  Result<bool, Self::Error> {
+                    unsafe { Ok((*$GPIOX::ptr()).odr.read().bits() & (1 << self.i) == 1) }
                 }
 
-                fn is_set_low(&self) -> bool {
+                fn is_set_low(&self) ->  Result<bool, Self::Error> {
                     // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*$GPIOX::ptr()).odr.read().bits() & (1 << self.i) == 0 }
+                    unsafe { Ok((*$GPIOX::ptr()).odr.read().bits() & (1 << self.i) == 0) }
                 }
             }
 
             impl<MODE> toggleable::Default for $PXx<Output<MODE>> {}
 
             impl<MODE> InputPin for $PXx<Output<MODE>> {
-                fn is_high(&self) -> bool {
-                    !self.is_low()
+                type Error = super::Error;
+
+                fn is_high(&self) -> Result<bool, Self::Error> {
+                    unsafe {Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 1) }
                 }
 
-                fn is_low(&self) -> bool {
+                fn is_low(&self) ->  Result<bool, Self::Error> {
                     // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 0 }
+                    unsafe {Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 0) }
                 }
             }
 
             impl<MODE> InputPin for $PXx<Input<MODE>> {
-                fn is_high(&self) -> bool {
-                    !self.is_low()
+                type Error = super::Error;
+
+                fn is_high(&self) -> Result<bool, Self::Error> {
+                    // NOTE(unsafe) atomic read with no side effects
+                    unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 1) }
                 }
 
-                fn is_low(&self) -> bool {
+                fn is_low(&self) -> Result<bool, Self::Error> {
                     // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 0 }
+                    unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << self.i) == 0) }
                 }
             }
 
             $(
                 /// Pin
                 pub struct $PXi<MODE> {
+                    pub i: u8,
+                    pub port: Port,
                     _mode: PhantomData<MODE>,
                 }
 
@@ -187,7 +202,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b00 << offset))
                             })
                         };
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Configures the pin to operate as a pulled down input pin
@@ -203,7 +222,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b00 << offset))
                             })
                         };
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Configures the pin to operate as a pulled up input pin
@@ -219,7 +242,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b00 << offset))
                             })
                         };
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Configures the pin to operate as an analog pin
@@ -235,7 +262,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b11 << offset))
                             });
                         }
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Configures the pin to operate as an open drain output pin
@@ -254,7 +285,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b01 << offset))
                             })
                         };
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Configures the pin to operate as an push pull output pin
@@ -273,7 +308,11 @@ macro_rules! gpio {
                                 w.bits((r.bits() & !(0b11 << offset)) | (0b01 << offset))
                             })
                         };
-                        $PXi { _mode: PhantomData }
+                        $PXi {
+                             i: $i,
+                            port: Port::$PXx,
+                            _mode: PhantomData 
+                        }
                     }
 
                     /// Set pin speed
@@ -318,44 +357,52 @@ macro_rules! gpio {
                     pub fn downgrade(self) -> $PXx<Output<MODE>> {
                         $PXx {
                             i: $i,
+                            port: Port::$PXx,
                             _mode: self._mode,
                         }
                     }
                 }
 
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                    fn set_high(&mut self) {
+                    type Error = super::Error;
+
+                    fn set_high(&mut self) -> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register
                         unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << $i)) }
+                        Ok(())
                     }
 
-                    fn set_low(&mut self) {
+                    fn set_low(&mut self)-> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register
                         unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << ($i + 16))) }
+                        Ok(())
                     }
                 }
 
                 impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
-                    fn is_set_high(&self) -> bool {
-                        !self.is_set_low()
+
+                    fn is_set_high(&self) -> Result<bool, Self::Error> {
+                        unsafe { Ok((*$GPIOX::ptr()).odr.read().bits() & (1 << $i) == 1) }
                     }
 
-                    fn is_set_low(&self) -> bool {
+                    fn is_set_low(&self) -> Result<bool, Self::Error> {
                         // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*$GPIOX::ptr()).odr.read().bits() & (1 << $i) == 0 }
+                        unsafe { Ok((*$GPIOX::ptr()).odr.read().bits() & (1 << $i) == 0) }
                     }
                 }
 
                 impl<MODE> toggleable::Default for $PXi<Output<MODE>> {}
 
                 impl<MODE> InputPin for $PXi<Output<MODE>> {
-                    fn is_high(&self) -> bool {
-                        !self.is_low()
+                    type Error = super::Error;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 1) }
                     }
 
-                    fn is_low(&self) -> bool {
+                    fn is_low(&self) -> Result<bool, Self::Error> {
                         // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 0 }
+                        unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 0) }
                     }
                 }
 
@@ -367,29 +414,26 @@ macro_rules! gpio {
                     pub fn downgrade(self) -> $PXx<Input<MODE>> {
                         $PXx {
                             i: $i,
+                            port: Port::$PXx,
                             _mode: self._mode,
                         }
                     }
                 }
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
-                    fn is_high(&self) -> bool {
-                        !self.is_low()
+                    type Error = super::Error;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 1) }
+
                     }
 
-                    fn is_low(&self) -> bool {
+                    fn is_low(&self) -> Result<bool, Self::Error>  {
                         // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 0 }
+                        unsafe { Ok((*$GPIOX::ptr()).idr.read().bits() & (1 << $i) == 0) }
                     }
                 }
             )+
-
-                impl<TYPE> $PXx<TYPE> {
-                    pub fn get_id (&self) -> u8
-                    {
-                        self.i
-                    }
-                }
         }
     }
 }
