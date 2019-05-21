@@ -50,12 +50,12 @@ const APP: () = {
 
     }
 
-    #[interrupt(resources = [LED, INT])]
+    #[interrupt(resources = [LED, INT, BUTTON])]
     fn EXTI2_3() {
         static mut STATE: bool = false;
 
         // Clear the interrupt flag.
-        resources.INT.clear_irq(2);
+        resources.INT.clear_irq(resources.BUTTON.i);
         //unsafe {
             if *STATE {
                resources.LED.set_low().unwrap();
