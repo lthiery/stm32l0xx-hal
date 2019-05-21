@@ -6,9 +6,10 @@ use crate::gpio::gpioa::*;
 use crate::gpio::{AltMode, Floating, Input};
 use crate::hal;
 use crate::hal::prelude::*;
-use crate::pac::{USART1, USART2};
 use crate::rcc::Rcc;
 use nb::block;
+
+pub use crate::pac::{USART1, USART2};
 
 /// Serial error
 #[derive(Debug)]
