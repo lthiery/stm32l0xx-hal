@@ -41,6 +41,17 @@ const APP: () = {
             TriggerEdge::Falling,
         );
 
+        // Configure PB2 as input.
+        let sx1276_dio0 = gpiob.pb4.into_pull_up_input();
+        // Configure the external interrupt on the falling edge for the pin 2.
+        exti.listen(
+            &mut rcc,
+            &mut device.SYSCFG_COMP,
+            sx1276_dio0.port,
+            sx1276_dio0.i,
+            TriggerEdge::Falling,
+        );
+    
         // Return the initialised resources.
         init::LateResources {
             LED: led,
@@ -56,15 +67,13 @@ const APP: () = {
 
         // Clear the interrupt flag.
         resources.INT.clear_irq(resources.BUTTON.i);
-        //unsafe {
-            if *STATE {
-               resources.LED.set_low().unwrap();
-               *STATE = false;
-            } else {
-                resources.LED.set_high().unwrap();
-               *STATE = true;
-            }
-        //}
+        if *STATE {
+           resources.LED.set_low().unwrap();
+           *STATE = false;
+        } else {
+            resources.LED.set_high().unwrap();
+           *STATE = true;
+        }
         
     }
 

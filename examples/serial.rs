@@ -1,16 +1,17 @@
 
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
 
 extern crate panic_halt;
 
-//use core::fmt::Write;
+use core::fmt::Write;
+use cortex_m::asm;
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config, serial};
 
-use nb::block;
+//use nb::block;
 
 #[entry]
 fn main() -> ! {
@@ -23,23 +24,24 @@ fn main() -> ! {
     // the RCC register.
     let gpioa = dp.GPIOA.split(&mut rcc);
 
-    let tx_pin = gpioa.pa2;
-    let rx_pin = gpioa.pa3;
+    let tx_pin = gpioa.pa9;
+    let rx_pin = gpioa.pa10;
 
     // Configure the serial peripheral.
     let serial = dp
-        .USART2
+        .USART1
         .usart((tx_pin, rx_pin), serial::Config::default(), &mut rcc)
         .unwrap();
 
     let (mut tx, mut rx) = serial.split();
 
     // core::fmt::Write is implemented for tx.
-    //writeln!(tx, "Hello, world!").unwrap();
+    writeln!(tx, "Hello, world!\r\n Start typing: \r\n").unwrap();
 
     loop {
         // Echo what is received on the serial link.
-        let received = block!(rx.read()).unwrap();
-        block!(tx.write(received)).ok();
+        //let received = block!(rx.read()).unwrap();
+        //block!(tx.write(received)).ok();
+        asm::nop();
     }
 }
