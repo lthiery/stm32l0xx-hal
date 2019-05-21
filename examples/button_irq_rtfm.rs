@@ -4,9 +4,7 @@
 
 extern crate panic_halt;
 use stm32l0xx_hal as hal;
-
 use hal::{exti::TriggerEdge, gpio::*, pac, prelude::*, rcc::Config};
-
 use embedded_hal::digital::v2::OutputPin;
 
 #[rtfm::app(device = stm32l0xx_hal::pac)]
