@@ -53,7 +53,7 @@ impl ExtiExt for EXTI {
                     });
                 },
                 4 | 5 | 6 | 7 => {
-                    syscfg.exticr2.modify(|_, w| {
+                    syscfg.exticr2.write(|w| {
                         match line {
                             4 => w.exti4().bits(port_bm),
                             5 => w.exti5().bits(port_bm),
@@ -64,7 +64,7 @@ impl ExtiExt for EXTI {
                     });
                 },
                 8 | 9 | 10 | 11 => {
-                    syscfg.exticr3.modify(|_, w| {
+                    syscfg.exticr3.write(|w| {
                         match line {
                             8 => w.exti8().bits(port_bm),
                             9 => w.exti9().bits(port_bm),
@@ -75,7 +75,7 @@ impl ExtiExt for EXTI {
                     });
                 },
                 12 | 13 | 14 | 15 => {
-                    syscfg.exticr4.modify(|_, w| {
+                    syscfg.exticr4.write(|w| {
                         match line {
                             12 => w.exti12().bits(port_bm),
                             13 => w.exti13().bits(port_bm),
@@ -93,24 +93,24 @@ impl ExtiExt for EXTI {
 
         unsafe {
             match edge {
-                TriggerEdge::Rising => self.rtsr.modify(|_, w|
-                    w.bits(bm)
+                TriggerEdge::Rising => self.rtsr.modify(|r, w|
+                    w.bits(r.bits() | bm)
                 ),
-                TriggerEdge::Falling => self.ftsr.modify(|_, w|
-                    w.bits(bm)
+                TriggerEdge::Falling => self.ftsr.modify(|r, w|
+                    w.bits(r.bits() | bm)
                 ),
                 TriggerEdge::All => {
-                    self.rtsr.modify(|_, w|
-                        w.bits(bm)
+                    self.rtsr.modify(|r, w|
+                        w.bits(r.bits() | bm)
                     );
-                    self.ftsr.modify(|_, w|
-                        w.bits(bm)
+                    self.ftsr.modify(|r, w|
+                        w.bits(r.bits() | bm)
                     );
                     }
             }
 
-            self.imr.modify(|_, w|
-                w.bits(bm)
+            self.imr.modify(|r, w|
+                w.bits(r.bits() | bm)
             );
         }
     }
@@ -130,7 +130,7 @@ impl ExtiExt for EXTI {
     fn clear_irq(&self, line: u8) {
         assert!(line < 24);
 
-        self.pr.write(|w|
+        self.pr.modify(|_, w|
             unsafe{
                 w.bits(0b1<<line)
             }

@@ -28,10 +28,10 @@ const APP: () = {
         // Configure PB5 as output.
         let led = gpiob.pb5.into_push_pull_output();
 
+        let exti = device.EXTI;
+
         // Configure PB2 as input.
         let button = gpiob.pb2.into_pull_up_input();
-
-        let exti = device.EXTI;
         // Configure the external interrupt on the falling edge for the pin 2.
         exti.listen(
             &mut rcc,
