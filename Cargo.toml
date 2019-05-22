@@ -36,6 +36,7 @@ cortex-m-rtfm = "0.4.3"
 void = { version = "1.0.2", default-features = false }
 cast = { version = "0.2.2", default-features = false }
 nb = "0.1.2"
+byteorder = { version = "1", default-features = false }
 
 [dependencies.stm32l0]
 version = "0.7.0"
