@@ -26,10 +26,12 @@ fn main() -> ! {
     let mut led = gpiob.pb5.into_push_pull_output();
 
     loop {
-        if button.is_high() {
-            led.set_high();
-        } else {
-            led.set_low();
-        }
+        let wait =  match button.is_high() {
+            Ok(true) => 300.ms(),
+            Ok(false) => 100.ms(),
+            _ => unreachable!(),
+        };
+        delay.delay(wait);
+        led.toggle().unwrap();
     }
 }

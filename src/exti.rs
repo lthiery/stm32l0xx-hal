@@ -5,6 +5,9 @@ use crate::gpio;
 use crate::rcc;
 use crate::rcc::Rcc;
 
+#[cfg(feature = "stm32l0x1")]
+use stm32l0::stm32l0x1::SYSCFG as syscfg_comp;
+#[cfg(feature = "stm32l0x2")]
 use stm32l0::stm32l0x2::SYSCFG_COMP as syscfg_comp;
 
 pub enum TriggerEdge {

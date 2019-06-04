@@ -1,4 +1,5 @@
 use crate::gpio::gpioa::*;
+#[cfg(feature = "stm32l0x2")]
 use crate::gpio::gpiob::*;
 
 use crate::gpio::{AltMode, Floating, Input};
