@@ -139,6 +139,14 @@ impl Pins<USART2> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
     }
 }
 
+#[cfg(feature = "stm32l0x2")]
+impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
+    fn setup(&self) {
+        self.0.set_alt_mode(AltMode::AF4);
+        self.1.set_alt_mode(AltMode::AF4);
+    }
+}
+
 #[cfg(feature = "stm32l0x1")]
 impl Pins<USART2> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
     fn setup(&self) {
@@ -324,6 +332,7 @@ macro_rules! usart {
 
             impl hal::serial::Read<u8> for Rx<$USARTX> {
                 type Error = Error;
+
 
                 fn read(&mut self) -> nb::Result<u8, Error> {
                     // NOTE(unsafe) atomic read with no side effects
