@@ -55,12 +55,12 @@ const APP: () = {
         }
     }
 
-    #[task(capacity = 4, priority = 2, resources = [SERIAL_TX])]
+    #[task(capacity = 4, priority = 1, resources = [SERIAL_TX])]
     fn echo(byte: u8) {
-        write!(resources.SERIAL_TX, "{}", byte as char).unwrap();
+        resources.SERIAL_TX.write(byte);
     }
 
-    #[interrupt(priority = 1, resources = [SERIAL_RX], spawn = [echo])]
+    #[interrupt(priority = 2, resources = [SERIAL_RX], spawn = [echo])]
     fn USART2() {
         if let Ok(byte) = resources.SERIAL_RX.read() {
             spawn.echo(byte);
