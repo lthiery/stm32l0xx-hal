@@ -2,8 +2,8 @@
 use crate::hal::blocking::i2c::{Read, Write, WriteRead};
 
 use cast::u8;
-use crate::gpio::gpioa::{PA4, PA9, PA10, PA13};
-use crate::gpio::gpiob::{PB6, PB7};
+use crate::gpio::gpioa::*;
+use crate::gpio::gpiob::*;
 use crate::gpio::{AltMode, OpenDrain, Output};
 use crate::pac::I2C1;
 use crate::rcc::Rcc;
@@ -107,7 +107,7 @@ macro_rules! i2c {
                 // t_PRESC  = (PRESC + 1) * t_I2CCLK
                 // t_SCLL   = (SCLL + 1) * t_PRESC
                 // t_SCLH   = (SCLH + 1) * t_PRESC
-                //
+                
                 // t_SYNC1 + t_SYNC2 > 4 * t_I2CCLK
                 // t_SCL ~= t_SYNC1 + t_SYNC2 + t_SCLL + t_SCLH
                 let i2cclk = rcc.clocks.apb1_clk().0;
@@ -158,7 +158,6 @@ macro_rules! i2c {
                 let sclh = u8(sclh).unwrap();
                 let scll = u8(scll).unwrap();
 
-                // Configure for "fast mode" (400 KHz)
                 i2c.timingr.write(|w| {
                     w.presc()
                         .bits(presc)
@@ -189,21 +188,26 @@ macro_rules! i2c {
                 // Push out a byte of data
                 self.i2c.txdr.write(|w| unsafe { w.txdata().bits(byte) });
 
-                // While until byte is transferred
-                loop {
-                    let isr = self.i2c.isr.read();
-                    if isr.berr().bit_is_set() {
-                        self.i2c.icr.write(|w| w.berrcf().set_bit());
-                        return Err(Error::BusError);
-                    } else if isr.arlo().bit_is_set() {
-                        self.i2c.icr.write(|w| w.arlocf().set_bit());
-                        return Err(Error::ArbitrationLost);
-                    } else if isr.nackf().bit_is_set() {
-                        self.i2c.icr.write(|w| w.nackcf().set_bit());
-                        return Err(Error::Nack);
-                    }
-                    return Ok(())
-                }
+                self.i2c.cr2.modify(|_, w| {
+                    w.start().set_bit()
+                });
+
+                // // While until byte is transferred
+                // loop {
+                //     let isr = self.i2c.isr.read();
+                //     if isr.berr().bit_is_set() {
+                //         self.i2c.icr.write(|w| w.berrcf().set_bit());
+                //         return Err(Error::BusError);
+                //     } else if isr.arlo().bit_is_set() {
+                //         self.i2c.icr.write(|w| w.arlocf().set_bit());
+                //         return Err(Error::ArbitrationLost);
+                //     } else if isr.nackf().bit_is_set() {
+                //         self.i2c.icr.write(|w| w.nackcf().set_bit());
+                //         return Err(Error::Nack);
+                //     }
+                //     return Ok(())
+                // }
+                return Ok(())
             }
 
             fn recv_byte(&self) -> Result<u8, Error> {
@@ -234,22 +238,19 @@ macro_rules! i2c {
             type Error = Error;
 
             fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Self::Error> {
-                self.i2c.cr2.modify(|_, w| unsafe {
-                    w.start()
-                        .set_bit()
-                        .nbytes()
-                        .bits(bytes.len() as u8)
-                        .sadd()
-                        .bits((addr << 1) as u16)
-                        .rd_wrn()
-                        .clear_bit()
-                        .autoend()
-                        .set_bit()
+
+                self.i2c.cr2.write(|w| unsafe {
+                    w.autoend()
+                    .set_bit()
+                    .nbytes()
+                    .bits(bytes.len() as u8)
+                    .add10()
+                    .clear_bit()
+                    .sadd()
+                    .bits((addr << 1) as u16)
                 });
 
-                while self.i2c.isr.read().busy().bit_is_clear() {}
-
-                // Send bytes
+                // // Send bytes
                 for c in bytes {
                     self.send_byte(*c)?;
                 }
@@ -286,6 +287,7 @@ macro_rules! i2c {
     };
 }
 
+#[cfg(feature = "stm32l0x1")]
 i2c!(
     I2C1,
     i2c1,
@@ -300,5 +302,21 @@ i2c!(
         (PB6<Output<OpenDrain>>, AltMode::AF1),
         (PA9<Output<OpenDrain>>, AltMode::AF1),
         (PA4<Output<OpenDrain>>, AltMode::AF3),
+    ],
+);
+
+#[cfg(feature = "stm32l0x2")]
+i2c!(
+    I2C1,
+    i2c1,
+    i2c1en,
+    i2c1rst,
+    sda: [
+        (PA10<Output<OpenDrain>>, AltMode::AF6),
+        (PB9<Output<OpenDrain>>, AltMode::AF4),
+    ],
+    scl: [
+        (PA9<Output<OpenDrain>>, AltMode::AF6),
+        (PB8<Output<OpenDrain>>, AltMode::AF4),
     ],
 );
