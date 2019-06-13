@@ -177,22 +177,22 @@ macro_rules! i2c {
                 I2c { i2c, sda, scl }
             }
 
+            fn is_busy(&self) -> bool {
+                self.i2c.isr.read().busy().bit_is_set()
+            }
+
             pub fn release(self) -> ($I2CX, SDA, SCL) {
                 (self.i2c, self.sda, self.scl)
             }
 
             fn send_byte(&self, byte: u8) -> Result<(), Error> {
-
-                // wait until I2C_TXDR register is empty
-                //while self.i2c.isr.read().txe().bit_is_clear() {}
-
                 // Push out a byte of data
                 self.i2c.txdr.write(|w| unsafe { w.txdata().bits(byte) });
 
                 // wait until I2C_TXDR register is empty
-                while self.i2c.isr.read().txe().bit_is_set() {}
+                //while self.i2c.isr.read().txe().bit_is_set() {}
 
-                // // While until byte is transferred
+                // While until byte is transferred
                 loop {
                     let isr = self.i2c.isr.read();
                     if isr.berr().bit_is_set() {
@@ -210,6 +210,7 @@ macro_rules! i2c {
             }
 
             fn recv_byte(&self) -> Result<u8, Error> {
+                // wait until I2C_RXDR has something
                 while self.i2c.isr.read().rxne().bit_is_clear() {}
 
                 let value = self.i2c.rxdr.read().rxdata().bits();
@@ -237,7 +238,7 @@ macro_rules! i2c {
             type Error = Error;
 
             fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Self::Error> {
-                while self.i2c.isr.read().busy().bit_is_set() {}
+                while self.is_busy() {}
 
                 self.i2c.cr2.write(|w| unsafe {
                     w.autoend()
@@ -265,7 +266,7 @@ macro_rules! i2c {
             type Error = Error;
 
             fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
-                while self.i2c.isr.read().busy().bit_is_set() {}
+                while self.is_busy() {}
 
                 self.i2c.cr2.write(|w| unsafe {
                     w.autoend()
