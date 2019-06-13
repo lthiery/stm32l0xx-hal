@@ -40,10 +40,11 @@ fn main() -> ! {
         .I2C1
         .i2c(sda, scl, 100.khz(), &mut rcc);
 
-    let mut buffer = [0u8; 2];
-    const MAX17048_ADDR: u8 = 0x77;
+    let write_buf = [0xFAu8; 1];
+    let mut buffer = [0u8; 1];
+    const BMP280: u8 = 0x77;
 
     loop {
-        i2c.write(MAX17048_ADDR, &mut buffer).unwrap();
+        i2c.write_read(BMP280, &write_buf, &mut buffer).unwrap();
     }
 }

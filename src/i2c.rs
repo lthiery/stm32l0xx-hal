@@ -169,7 +169,7 @@ macro_rules! i2c {
                         .bits(sdadel)
                         .scldel()
                         .bits(scldel)
-                });
+                });                
 
                 // Enable the peripheral
                 i2c.cr1.write(|w| w.pe().set_bit());
@@ -182,36 +182,35 @@ macro_rules! i2c {
             }
 
             fn send_byte(&self, byte: u8) -> Result<(), Error> {
-                // Wait until we're ready for sending
-                while self.i2c.isr.read().txe().bit_is_clear() {}
+
+                // wait until I2C_TXDR register is empty
+                //while self.i2c.isr.read().txe().bit_is_clear() {}
 
                 // Push out a byte of data
                 self.i2c.txdr.write(|w| unsafe { w.txdata().bits(byte) });
 
-                self.i2c.cr2.modify(|_, w| {
-                    w.start().set_bit()
-                });
+                // wait until I2C_TXDR register is empty
+                while self.i2c.isr.read().txe().bit_is_set() {}
 
                 // // While until byte is transferred
-                // loop {
-                //     let isr = self.i2c.isr.read();
-                //     if isr.berr().bit_is_set() {
-                //         self.i2c.icr.write(|w| w.berrcf().set_bit());
-                //         return Err(Error::BusError);
-                //     } else if isr.arlo().bit_is_set() {
-                //         self.i2c.icr.write(|w| w.arlocf().set_bit());
-                //         return Err(Error::ArbitrationLost);
-                //     } else if isr.nackf().bit_is_set() {
-                //         self.i2c.icr.write(|w| w.nackcf().set_bit());
-                //         return Err(Error::Nack);
-                //     }
-                //     return Ok(())
-                // }
-                return Ok(())
+                loop {
+                    let isr = self.i2c.isr.read();
+                    if isr.berr().bit_is_set() {
+                        self.i2c.icr.write(|w| w.berrcf().set_bit());
+                        return Err(Error::BusError);
+                    } else if isr.arlo().bit_is_set() {
+                        self.i2c.icr.write(|w| w.arlocf().set_bit());
+                        return Err(Error::ArbitrationLost);
+                    } else if isr.nackf().bit_is_set() {
+                        self.i2c.icr.write(|w| w.nackcf().set_bit());
+                        return Err(Error::Nack);
+                    }
+                    return Ok(())
+                }
             }
 
             fn recv_byte(&self) -> Result<u8, Error> {
-                while self.i2c.isr.read().rxne().bit_is_clear() {}
+                //while self.i2c.isr.read().rxne().bit_is_clear() {}
 
                 let value = self.i2c.rxdr.read().rxdata().bits();
                 Ok(value)
@@ -244,13 +243,15 @@ macro_rules! i2c {
                     .set_bit()
                     .nbytes()
                     .bits(bytes.len() as u8)
-                    .add10()
-                    .clear_bit()
                     .sadd()
                     .bits((addr << 1) as u16)
+                    .rd_wrn()
+                    .clear_bit()
+                    .start()
+                    .set_bit()
                 });
 
-                // // Send bytes
+                // Send bytes
                 for c in bytes {
                     self.send_byte(*c)?;
                 }
@@ -263,19 +264,19 @@ macro_rules! i2c {
             type Error = Error;
 
             fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
-                self.i2c.cr2.modify(|_, w| unsafe {
-                    w.start()
-                        .set_bit()
-                        .nbytes()
-                        .bits(buffer.len() as u8)
-                        .sadd()
-                        .bits((addr << 1) as u16)
-                        .autoend()
-                        .set_bit()
-                });
 
-                // Wait until address was sent
-                while self.i2c.isr.read().busy().bit_is_clear() {}
+                self.i2c.cr2.write(|w| unsafe {
+                    w.autoend()
+                    .set_bit()
+                    .nbytes()
+                    .bits(buffer.len() as u8)
+                    .sadd()
+                    .bits((addr << 1) as u16)
+                    .rd_wrn()
+                    .set_bit()
+                    .start()
+                    .set_bit()
+                });
 
                 // Receive bytes into buffer
                 for c in buffer {
