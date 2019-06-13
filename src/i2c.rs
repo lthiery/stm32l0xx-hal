@@ -210,7 +210,7 @@ macro_rules! i2c {
             }
 
             fn recv_byte(&self) -> Result<u8, Error> {
-                //while self.i2c.isr.read().rxne().bit_is_clear() {}
+                while self.i2c.isr.read().rxne().bit_is_clear() {}
 
                 let value = self.i2c.rxdr.read().rxdata().bits();
                 Ok(value)
@@ -237,6 +237,7 @@ macro_rules! i2c {
             type Error = Error;
 
             fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Self::Error> {
+                while self.i2c.isr.read().busy().bit_is_set() {}
 
                 self.i2c.cr2.write(|w| unsafe {
                     w.autoend()
@@ -264,6 +265,7 @@ macro_rules! i2c {
             type Error = Error;
 
             fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
+                while self.i2c.isr.read().busy().bit_is_set() {}
 
                 self.i2c.cr2.write(|w| unsafe {
                     w.autoend()
