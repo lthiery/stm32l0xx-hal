@@ -10,6 +10,13 @@ use stm32l0::stm32l0x1::SYSCFG as syscfg_comp;
 #[cfg(feature = "stm32l0x2")]
 use stm32l0::stm32l0x2::SYSCFG_COMP as syscfg_comp;
 
+
+pub enum Interrupt {
+    exti0_1,
+    exti2_3,
+    exti4_15,
+}
+
 pub enum TriggerEdge {
     Rising,
     Falling,
@@ -21,6 +28,11 @@ pub trait ExtiExt {
   fn unlisten(&self, line: u8);
   fn pend_interrupt(&self, line: u8);
   fn clear_irq(&self, line: u8);
+  fn get_pending_irq(&self) -> u32;
+}
+
+pub fn line_is_triggered(reg: u32, line: u8) -> bool {
+    (reg & (0b1<<line)) != 0
 }
 
 impl ExtiExt for EXTI {
@@ -128,6 +140,10 @@ impl ExtiExt for EXTI {
     fn pend_interrupt(&self, line: u8) {
         assert!(line < 24);
         bb::set(&self.swier, line);
+    }
+
+    fn get_pending_irq(&self) -> u32 {
+        self.pr.read().bits()
     }
 
     fn clear_irq(&self, line: u8) {

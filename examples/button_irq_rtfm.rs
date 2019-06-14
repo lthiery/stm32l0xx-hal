@@ -4,7 +4,7 @@
 
 extern crate panic_halt;
 use stm32l0xx_hal as hal;
-use hal::{exti::TriggerEdge, gpio::*, pac, prelude::*, rcc::Config};
+use hal::{exti, exti::TriggerEdge, gpio::*, pac, prelude::*, rcc::Config};
 use embedded_hal::digital::v2::OutputPin;
 
 #[rtfm::app(device = stm32l0xx_hal::pac)]
@@ -56,15 +56,38 @@ const APP: () = {
     fn EXTI2_3() {
         static mut STATE: bool = false;
 
-        // Clear the interrupt flag.
-        resources.INT.clear_irq(resources.BUTTON.i);
-        if *STATE {
-           resources.LED.set_low().unwrap();
-           *STATE = false;
-        } else {
-            resources.LED.set_high().unwrap();
-           *STATE = true;
+        let num = resources.INT.get_pending_irq();
+
+        if exti::line_is_triggered(num, resources.BUTTON.i) {
+            resources.INT.clear_irq(resources.BUTTON.i);
+            if *STATE {
+               resources.LED.set_low().unwrap();
+               *STATE = false;
+            } else {
+                resources.LED.set_high().unwrap();
+               *STATE = true;
+            }
         }
+
+        // if let Some(num) = resources.INT.get_pending_irq_num(exti::Interrupt::exti2_3) {
+            //match num {
+            //     1 => {
+                    // Clear the interrupt flag.
+            
+                // }
+        //         _ => (),
+        //     }
+        // } else {
+        //     resources.INT.clear_irq(resources.BUTTON.i);
+        //     if *STATE {
+        //        resources.LED.set_low().unwrap();
+        //        *STATE = false;
+        //     } else {
+        //         resources.LED.set_high().unwrap();
+        //        *STATE = true;
+        //     }
+        // }
+        
         
     }
 
