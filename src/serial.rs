@@ -338,16 +338,15 @@ macro_rules! usart {
                     // NOTE(unsafe) atomic read with no side effects
                     let isr = unsafe { (*$USARTX::ptr()).isr.read() };
 
+                    let mut byte: Option<u8> = None;
 
                     if isr.rxne().bit_is_set() {
                         // Read the received byte
                         // NOTE(read_volatile) see `write_volatile` below
-                        Ok(unsafe {
+                        byte = Some(unsafe {
                             ptr::read_volatile(&(*$USARTX::ptr()).rdr as *const _ as *const _)
-                        })
-                    } else {
-                        Err(nb::Error::WouldBlock)
-                    }
+                        });
+                    } 
 
                     // Check for any errors
                     let err = if isr.pe().bit_is_set() {
@@ -373,6 +372,13 @@ macro_rules! usart {
                             (*$USARTX::ptr()).icr.write(|w| {w.orecf().set_bit()});
                         }
                         Err(nb::Error::Other(err))
+                    }
+                    else {
+                        if let Some(b) = byte {
+                            Ok(b)
+                        } else {
+                            Err(nb::Error::Other(Error::Overrun))
+                        }
                     }
                 }
             }
