@@ -67,28 +67,7 @@ const APP: () = {
                 resources.LED.set_high().unwrap();
                *STATE = true;
             }
-        }
-
-        // if let Some(num) = resources.INT.get_pending_irq_num(exti::Interrupt::exti2_3) {
-            //match num {
-            //     1 => {
-                    // Clear the interrupt flag.
-            
-                // }
-        //         _ => (),
-        //     }
-        // } else {
-        //     resources.INT.clear_irq(resources.BUTTON.i);
-        //     if *STATE {
-        //        resources.LED.set_low().unwrap();
-        //        *STATE = false;
-        //     } else {
-        //         resources.LED.set_high().unwrap();
-        //        *STATE = true;
-        //     }
-        // }
-        
-        
+        }        
     }
 
 };
