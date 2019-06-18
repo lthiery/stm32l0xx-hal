@@ -488,7 +488,7 @@ gpio!(GPIOB, gpiob, iopben, PB, [
 ]);
 
 #[cfg(any(feature = "stm32l0x2"))]
-gpio!(GPIOC, gpioc, iopben, PC, [
+gpio!(GPIOC, gpioc, iopcen, PC, [
     PC0: (pc0, 0, Input<Floating>),
     PC1: (pc1, 1, Input<Floating>),
     PC2: (pc2, 2, Input<Floating>),
@@ -508,7 +508,7 @@ gpio!(GPIOC, gpioc, iopben, PC, [
 ]);
 
 #[cfg(any(feature = "stm32l0x2"))]
-gpio!(GPIOH, gpioh, iopben, PH, [
+gpio!(GPIOH, gpioh, iophen, PH, [
     PH0: (ph0, 0, Input<Floating>),
     PH1: (ph1, 1, Input<Floating>),
     PH2: (ph2, 2, Input<Floating>),
