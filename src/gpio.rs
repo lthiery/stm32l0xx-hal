@@ -66,7 +66,8 @@ pub enum Port {
     PA,
     PB,
     PC,
-    PD
+    PD,
+    PH
 }
 
 #[derive(Debug)]
@@ -504,5 +505,12 @@ gpio!(GPIOC, gpioc, iopben, PC, [
     PC13: (pc13, 13, Input<Floating>),
     PC14: (pc14, 14, Input<Floating>),
     PC15: (pc15, 15, Input<Floating>),
+]);
+
+#[cfg(any(feature = "stm32l0x2"))]
+gpio!(GPIOH, gpioh, iopben, PH, [
+    PH0: (ph0, 0, Input<Floating>),
+    PH1: (ph1, 1, Input<Floating>),
+    PH2: (ph2, 2, Input<Floating>),
 ]);
 

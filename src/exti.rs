@@ -51,7 +51,8 @@ impl ExtiExt for EXTI {
             gpio::Port::PA => 0,
             gpio::Port::PB => 1,
             gpio::Port::PC => 2,
-            gpio::Port::PD => 2,
+            gpio::Port::PD => 3,
+            gpio::Port::PH => 7,
         };
 
         unsafe {
