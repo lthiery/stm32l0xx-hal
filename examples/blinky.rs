@@ -5,6 +5,7 @@
 extern crate panic_halt;
 
 use cortex_m_rt::entry;
+use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]
@@ -24,12 +25,12 @@ fn main() -> ! {
     loop {
         // Set the LED high one million times in a row.
         for _ in 0..1_000_000 {
-            led.set_high();
+            led.set_high().unwrap();
         }
 
         // Set the LED low one million times in a row.
         for _ in 0..1_000_000 {
-            led.set_low();
+            led.set_low().unwrap();
         }
     }
 }

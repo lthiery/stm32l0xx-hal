@@ -7,6 +7,7 @@ extern crate panic_halt;
 
 use core::fmt::Write;
 use cortex_m_rt::entry;
+use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config, spi, serial};
 
 use stm32l0xx_hal as hal;
@@ -54,7 +55,7 @@ fn main() -> ! {
     // let mosi = gpioa.pa7;
     // let mut nss = gpioa.pa15.into_push_pull_output();
 
-    nss.set_high();
+    nss.set_high().unwrap();
 
     // Initialise the SPI peripheral.
     let mut spi = dp
@@ -80,7 +81,7 @@ fn read_register(
     addr: u8) -> u8{
 
 
-        nss.set_low();
+        nss.set_low().unwrap();
 
         spi.send(addr).unwrap();
         loop {        
@@ -96,7 +97,7 @@ fn read_register(
         loop {        
         match spi.read() {
                 Ok(byte) => {
-                    nss.set_high();
+                    nss.set_high().unwrap();
                     return byte;
                 },
                 _ => {}

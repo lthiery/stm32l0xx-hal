@@ -4,6 +4,7 @@
 extern crate panic_halt;
 
 use cortex_m_rt::entry;
+use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]
@@ -25,10 +26,10 @@ fn main() -> ! {
     let mut delay = cp.SYST.delay(rcc.clocks);
 
     loop {
-        led.set_high();
+        led.set_high().unwrap();
         delay.delay_ms(500_u16);
 
-        led.set_low();
+        led.set_low().unwrap();
         delay.delay_ms(500_u16);
     }
 }

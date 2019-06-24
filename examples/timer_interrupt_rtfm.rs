@@ -5,6 +5,7 @@
 
 extern crate panic_halt;
 
+use embedded_hal::digital::v2::OutputPin;
 use rtfm::app;
 use stm32l0xx_hal::{gpio::*, pac, prelude::*, rcc::Config, timer::Timer};
 
@@ -45,10 +46,10 @@ const APP: () = {
 
         // Change the LED state on each interrupt.
         if *STATE {
-            resources.LED.set_low();
+            resources.LED.set_low().unwrap();
             *STATE = false;
         } else {
-            resources.LED.set_high();
+            resources.LED.set_high().unwrap();
             *STATE = true;
         }
     }

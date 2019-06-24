@@ -5,6 +5,10 @@
 extern crate panic_halt;
 
 use cortex_m_rt::entry;
+use embedded_hal::digital::v2::{
+    InputPin,
+    OutputPin,
+};
 use stm32l0xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]
@@ -26,10 +30,10 @@ fn main() -> ! {
     let mut led = gpiob.pb5.into_push_pull_output();
 
     loop {
-        if button.is_high() {
-            led.set_high();
+        if button.is_high().unwrap() {
+            led.set_high().unwrap();
         } else {
-            led.set_low();
+            led.set_low().unwrap();
         }
     }
 }

@@ -9,6 +9,7 @@ use core::ops::DerefMut;
 use cortex_m::asm;
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
+use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{
     exti::TriggerEdge,
     gpio::{self, *},
@@ -89,10 +90,10 @@ fn EXTI2_3() {
             if let Some(ref mut led) = LED.borrow(cs).borrow_mut().deref_mut() {
                 unsafe {
                     if STATE {
-                        led.set_low();
+                        led.set_low().unwrap();
                         STATE = false;
                     } else {
-                        led.set_high();
+                        led.set_high().unwrap();
                         STATE = true;
                     }
                 }
