@@ -13,7 +13,7 @@ use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{
     exti::TriggerEdge,
     gpio::{self, *},
-    pac::{self, Interrupt, EXTI},
+    pac::{Interrupt, EXTI},
     prelude::*,
     rcc::Config,
 };

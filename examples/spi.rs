@@ -13,7 +13,6 @@ use stm32l0xx_hal::{pac, prelude::*, rcc::Config, spi, serial};
 use stm32l0xx_hal as hal;
 
 use stm32l0xx_hal::gpio::gpioa::*;
-use stm32l0xx_hal::gpio::gpiob::*;
 use stm32l0xx_hal::gpio::{Input, Floating, Output, PushPull};
 use stm32l0xx_hal::pac::SPI1;
 
