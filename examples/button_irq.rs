@@ -11,7 +11,7 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{
     exti::TriggerEdge,
-    gpio::*,
+    gpio::{self, *},
     pac::{self, Interrupt, EXTI},
     prelude::*,
     rcc::Config,
@@ -22,8 +22,8 @@ static LED: Mutex<RefCell<Option<gpiob::PB5<Output<PushPull>>>>> = Mutex::new(Re
 
 #[entry]
 fn main() -> ! {
-    let dp = stm32l0xx_hal::stm32::Peripherals::take().unwrap();
-    let cp = cortex_m::Peripherals::take().unwrap();
+    let mut dp = stm32l0xx_hal::stm32::Peripherals::take().unwrap();
+    let     cp = cortex_m::Peripherals::take().unwrap();
 
     // Configure the clock.
     let mut rcc = dp.RCC.freeze(Config::hsi16());
@@ -40,7 +40,13 @@ fn main() -> ! {
 
     // Configure the external interrupt on the falling edge for the pin 0.
     let exti = dp.EXTI;
-    exti.listen(2, TriggerEdge::Falling);
+    exti.listen(
+        &mut rcc,
+        &mut dp.SYSCFG_COMP,
+        gpio::Port::PB,
+        2,
+        TriggerEdge::Falling,
+    );
 
     // Store the external interrupt and LED in mutex reffcells to make them
     // available from the interrupt.
