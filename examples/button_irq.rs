@@ -56,18 +56,6 @@ fn main() -> ! {
         *LED.borrow(cs).borrow_mut() = Some(led);
     });
 
-    dp.SYSCFG_COMP.exticr1.write(|mut w|
-        unsafe {
-            // 1 = B
-            w
-            .exti2().bits(0b1)
-            .exti2().bits(0b1)
-            .exti1().bits(0b1)
-            .exti0().bits(0b1)
-
-        }
-    );
-
     // Enable the external interrupt in the NVIC.
     let mut nvic = cp.NVIC;
     nvic.enable(Interrupt::EXTI2_3);
