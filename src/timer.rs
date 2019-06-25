@@ -165,6 +165,11 @@ macro_rules! timers {
                     #[cfg(feature = "stm32l0x1")]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap() ) });
                     #[cfg(feature = "stm32l0x2")]
+                    // The `bits` method is unsafe for some timer instances,
+                    // meaning we need the `unsafe` block, but not for all,
+                    // meaning we'd get warnings about the unused `unsafe`
+                    // block.
+                    #[allow(unused_unsafe)]
                     self.tim.arr.write(|w| unsafe { w.arr().bits( u16(ticks / u32(psc + 1)).unwrap().into() ) });
 
 
