@@ -12,7 +12,7 @@ use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{
     gpio::*,
-    pac::{self, Interrupt},
+    pac::{self, interrupt, Interrupt},
     prelude::*,
     rcc::Config,
     timer::Timer,
@@ -56,6 +56,7 @@ fn main() -> ! {
     }
 }
 
+#[interrupt]
 fn TIM2() {
     // Keep a state to blink the LED.
     static mut STATE: bool = false;
@@ -67,14 +68,12 @@ fn TIM2() {
 
             // Change the LED state on each interrupt.
             if let Some(ref mut led) = LED.borrow(cs).borrow_mut().deref_mut() {
-                unsafe {
-                    if STATE {
-                        led.set_low().unwrap();
-                        STATE = false;
-                    } else {
-                        led.set_high().unwrap();
-                        STATE = true;
-                    }
+                if *STATE {
+                    led.set_low().unwrap();
+                    *STATE = false;
+                } else {
+                    led.set_high().unwrap();
+                    *STATE = true;
                 }
             }
         }

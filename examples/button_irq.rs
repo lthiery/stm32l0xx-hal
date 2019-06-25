@@ -13,7 +13,7 @@ use embedded_hal::digital::v2::OutputPin;
 use stm32l0xx_hal::{
     exti::TriggerEdge,
     gpio::{self, *},
-    pac::{Interrupt, EXTI},
+    pac::{interrupt, Interrupt, EXTI},
     prelude::*,
     rcc::Config,
 };
@@ -77,6 +77,7 @@ fn main() -> ! {
     }
 }
 
+#[interrupt]
 fn EXTI2_3() {
     // Keep the LED state.
     static mut STATE: bool = false;
@@ -88,14 +89,12 @@ fn EXTI2_3() {
 
             // Change the LED state on each interrupt.
             if let Some(ref mut led) = LED.borrow(cs).borrow_mut().deref_mut() {
-                unsafe {
-                    if STATE {
-                        led.set_low().unwrap();
-                        STATE = false;
-                    } else {
-                        led.set_high().unwrap();
-                        STATE = true;
-                    }
+                if *STATE {
+                    led.set_low().unwrap();
+                    *STATE = false;
+                } else {
+                    led.set_high().unwrap();
+                    *STATE = true;
                 }
                 
             }
