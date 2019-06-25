@@ -85,7 +85,7 @@ fn EXTI2_3() {
     cortex_m::interrupt::free(|cs| {
         if let Some(ref mut exti) = INT.borrow(cs).borrow_mut().deref_mut() {
             // Clear the interrupt flag.
-            exti.clear_irq(0);
+            exti.clear_irq(2);
 
             // Change the LED state on each interrupt.
             if let Some(ref mut led) = LED.borrow(cs).borrow_mut().deref_mut() {
