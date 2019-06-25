@@ -37,7 +37,7 @@ fn main() -> ! {
     let led = gpiob.pb5.into_push_pull_output();
 
     // Configure PB2 as input.
-    let button = gpiob.pb2.into_pull_up_input();
+    let _ = gpiob.pb2.into_pull_up_input();
 
     // Configure the external interrupt on the falling edge for the pin 0.
     let exti = dp.EXTI;

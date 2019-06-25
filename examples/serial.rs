@@ -33,7 +33,7 @@ fn main() -> ! {
         .usart((tx_pin, rx_pin), serial::Config::default(), &mut rcc)
         .unwrap();
 
-    let (mut tx, mut rx) = serial.split();
+    let (mut tx, _) = serial.split();
 
     // core::fmt::Write is implemented for tx.
     writeln!(tx, "Hello, world!\r\n Start typing: \r\n").unwrap();

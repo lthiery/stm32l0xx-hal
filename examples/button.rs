@@ -14,7 +14,6 @@ use stm32l0xx_hal::{pac, prelude::*, rcc::Config};
 #[entry]
 fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
-    let cp = cortex_m::Peripherals::take().unwrap();
 
     // Configure the clock.
     let mut rcc = dp.RCC.freeze(Config::hsi16());

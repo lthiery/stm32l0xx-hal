@@ -48,7 +48,6 @@ fn main() -> ! {
     let mosi = gpioa.pa12;
     let mut nss = gpioa.pa2.into_push_pull_output();
     
-    let gpiob = dp.GPIOB.split(&mut rcc);
     // let sck = gpiob.pb3;
     // let miso = gpioa.pa6;
     // let mosi = gpioa.pa7;
