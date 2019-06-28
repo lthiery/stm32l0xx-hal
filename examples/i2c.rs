@@ -25,7 +25,7 @@ fn main() -> ! {
     let sda = gpiob.pb7.into_open_drain_output();
 
     // Configure the I2C1.
-    let mut i2c = dp.I2C1.i2c((scl, sda), 10.khz(), &mut rcc);
+    let mut i2c = dp.I2C1.i2c(sda, scl, 10.khz(), &mut rcc);
 
     let mut buf: [u8; 1] = [0; 1];
 

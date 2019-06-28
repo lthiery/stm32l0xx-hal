@@ -1,281 +1,394 @@
 //! I2C
+
+use core::ops::Deref;
+
 use crate::hal::blocking::i2c::{Read, Write, WriteRead};
 
+use cast::u8;
+use crate::gpio::gpioa::{PA9, PA10, PA13};
 use crate::gpio::gpiob::{PB6, PB7};
-use crate::gpio::{OpenDrain, Output};
-use crate::pac::I2C1;
+use crate::gpio::{AltMode, OpenDrain, Output};
+use crate::pac::{
+    i2c1::RegisterBlock,
+    I2C1,
+};
 use crate::rcc::Rcc;
 use crate::time::Hertz;
 
+#[cfg(feature = "stm32l0x1")]
+use crate::gpio::gpioa::PA4;
+
+#[cfg(feature = "stm32l0x2")]
+use crate::{
+    gpio::{
+        gpioa::PA8,
+        gpiob::{
+            PB4,
+            PB8,
+            PB9,
+            PB11,
+            PB14,
+        },
+        gpioc::{
+            PC0,
+            PC1,
+        },
+    },
+    pac::{
+        I2C2,
+        I2C3,
+    },
+};
+
+
 /// I2C abstraction
-pub struct I2c<I2C, PINS> {
+pub struct I2c<I2C, SDA, SCL> {
     i2c: I2C,
-    pins: PINS,
+    sda: SDA,
+    scl: SCL,
 }
 
-pub trait Pins<I2c> {
-    fn setup(&self);
-}
+impl<I, SDA, SCL> I2c<I, SDA, SCL>
+    where I: Instance
+{
+    pub fn new(i2c: I, sda: SDA, scl: SCL, freq: Hertz, rcc: &mut Rcc)
+        -> Self
+    where
+        I:   Instance,
+        SDA: SDAPin<I>,
+        SCL: SCLPin<I>,
+    {
 
-impl Pins<I2C1> for (PB6<Output<OpenDrain>>, PB7<Output<OpenDrain>>) {
-    fn setup(&self) {
-        // self.0.set_alt_mode(AltMode::I2C);
-        // self.1.set_alt_mode(AltMode::I2C);
+        sda.setup();
+        scl.setup();
+
+        i2c.initialize(rcc);
+
+        let freq = freq.0;
+
+        assert!(freq <= 1_000_000);
+
+        // TODO review compliance with the timing requirements of I2C
+        // t_I2CCLK = 1 / PCLK1
+        // t_PRESC  = (PRESC + 1) * t_I2CCLK
+        // t_SCLL   = (SCLL + 1) * t_PRESC
+        // t_SCLH   = (SCLH + 1) * t_PRESC
+        //
+        // t_SYNC1 + t_SYNC2 > 4 * t_I2CCLK
+        // t_SCL ~= t_SYNC1 + t_SYNC2 + t_SCLL + t_SCLH
+        let i2cclk = rcc.clocks.apb1_clk().0;
+        let ratio = i2cclk / freq - 4;
+        let (presc, scll, sclh, sdadel, scldel) = if freq >= 100_000 {
+            // fast-mode or fast-mode plus
+            // here we pick SCLL + 1 = 2 * (SCLH + 1)
+            let presc = ratio / 387;
+
+            let sclh = ((ratio / (presc + 1)) - 3) / 3;
+            let scll = 2 * (sclh + 1) - 1;
+
+            let (sdadel, scldel) = if freq > 400_000 {
+                // fast-mode plus
+                let sdadel = 0;
+                let scldel = i2cclk / 4_000_000 / (presc + 1) - 1;
+
+                (sdadel, scldel)
+            } else {
+                // fast-mode
+                let sdadel = i2cclk / 8_000_000 / (presc + 1);
+                let scldel = i2cclk / 2_000_000 / (presc + 1) - 1;
+
+                (sdadel, scldel)
+            };
+
+            (presc, scll, sclh, sdadel, scldel)
+        } else {
+            // standard-mode
+            // here we pick SCLL = SCLH
+            let presc = ratio / 514;
+
+            let sclh = ((ratio / (presc + 1)) - 2) / 2;
+            let scll = sclh;
+
+            let sdadel = i2cclk / 2_000_000 / (presc + 1);
+            let scldel = i2cclk / 800_000 / (presc + 1) - 1;
+
+            (presc, scll, sclh, sdadel, scldel)
+        };
+
+        let presc = u8(presc).unwrap();
+        assert!(presc < 16);
+        let scldel = u8(scldel).unwrap();
+        assert!(scldel < 16);
+        let sdadel = u8(sdadel).unwrap();
+        assert!(sdadel < 16);
+        let sclh = u8(sclh).unwrap();
+        let scll = u8(scll).unwrap();
+
+        // Configure for "fast mode" (400 KHz)
+        i2c.timingr.write(|w| {
+            w
+                .presc().bits(presc)
+                .scll().bits(scll)
+                .sclh().bits(sclh)
+                .sdadel().bits(sdadel)
+                .scldel().bits(scldel)
+        });
+
+        // Enable the peripheral
+        i2c.cr1.write(|w| w.pe().set_bit());
+
+        I2c { i2c, sda, scl }
+    }
+
+    pub fn release(self) -> (I, SDA, SCL) {
+        (self.i2c, self.sda, self.scl)
+    }
+
+    fn send_byte(&self, byte: u8) -> Result<(), Error> {
+        // Wait until we're ready for sending
+        while self.i2c.isr.read().txe().bit_is_clear() {}
+
+        // Push out a byte of data
+        self.i2c.txdr.write(|w| w.txdata().bits(byte));
+
+        // While until byte is transferred
+        loop {
+            let isr = self.i2c.isr.read();
+            if isr.berr().bit_is_set() {
+                self.i2c.icr.write(|w| w.berrcf().set_bit());
+                return Err(Error::BusError);
+            } else if isr.arlo().bit_is_set() {
+                self.i2c.icr.write(|w| w.arlocf().set_bit());
+                return Err(Error::ArbitrationLost);
+            } else if isr.nackf().bit_is_set() {
+                self.i2c.icr.write(|w| w.nackcf().set_bit());
+                return Err(Error::Nack);
+            }
+            return Ok(())
+        }
+    }
+
+    fn recv_byte(&self) -> Result<u8, Error> {
+        while self.i2c.isr.read().rxne().bit_is_clear() {}
+
+        let value = self.i2c.rxdr.read().rxdata().bits();
+        Ok(value)
     }
 }
 
+impl<I, SDA, SCL> WriteRead for I2c<I, SDA, SCL>
+    where I: Instance
+{
+    type Error = Error;
+
+    fn write_read(
+        &mut self,
+        addr: u8,
+        bytes: &[u8],
+        buffer: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        self.write(addr, bytes)?;
+        self.read(addr, buffer)?;
+
+        Ok(())
+    }
+}
+
+impl<I, SDA, SCL> Write for I2c<I, SDA, SCL>
+    where I: Instance
+{
+    type Error = Error;
+
+    fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Self::Error> {
+        while self.i2c.isr.read().busy().is_busy() {}
+
+        self.i2c.cr2.write(|w|
+            w
+                .start().set_bit()
+                .nbytes().bits(bytes.len() as u8)
+                .sadd().bits((addr << 1) as u16)
+                .rd_wrn().clear_bit()
+                .autoend().set_bit()
+        );
+
+        // Send bytes
+        for c in bytes {
+            self.send_byte(*c)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<I, SDA, SCL> Read for I2c<I, SDA, SCL>
+    where I: Instance
+{
+    type Error = Error;
+
+    fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
+        while self.i2c.isr.read().busy().is_busy() {}
+
+        self.i2c.cr2.write(|w|
+            w
+                .start().set_bit()
+                .nbytes().bits(buffer.len() as u8)
+                .sadd().bits((addr << 1) as u16)
+                // Request read transfer
+                .rd_wrn().read()
+                .autoend().set_bit()
+        );
+
+        // Receive bytes into buffer
+        for c in buffer {
+            *c = self.recv_byte()?;
+        }
+        Ok(())
+    }
+}
+
+
+pub trait Instance: Deref<Target=RegisterBlock> {
+    fn initialize(&self, rcc: &mut Rcc);
+}
+
+
+// I2C SDA pin
+pub trait SDAPin<I2C> {
+    fn setup(&self);
+}
+
+// I2C SCL pin
+pub trait SCLPin<I2C> {
+    fn setup(&self);
+}
+
+// I2C error
 #[derive(Debug)]
 pub enum Error {
-    OVERRUN,
-    NACK,
+    Overrun,
+    Nack,
+    PECError,
+    BusError,
+    ArbitrationLost,
+}
+
+pub trait I2cExt<I2C> {
+    fn i2c<SDA, SCL>(self, sda: SDA, scl: SCL, freq: Hertz, rcc: &mut Rcc) -> I2c<I2C, SDA, SCL>
+    where
+        SDA: SDAPin<I2C>,
+        SCL: SCLPin<I2C>;
 }
 
 macro_rules! i2c {
-    ($I2CX:ident, $i2cx:ident, $i2cxen:ident, $i2crst:ident, $I2cxExt:ident) => {
-        impl<PINS> I2c<$I2CX, PINS> {
-            pub fn $i2cx(i2c: $I2CX, pins: PINS, _speed: Hertz, _rcc: &mut Rcc) -> Self
-            where
-                PINS: Pins<$I2CX>,
-            {
-                pins.setup();
-                // let speed: Hertz = speed.into();
-
-                // // Enable clock for I2C
-                // rcc.rb.apb1enr.modify(|_, w| w.$i2cxen().set_bit());
-
-                // // Reset I2C
-                // rcc.rb.apb1rstr.modify(|_, w| w.$i2crst().set_bit());
-                // rcc.rb.apb1rstr.modify(|_, w| w.$i2crst().clear_bit());
-
-                // // Make sure the I2C unit is disabled so we can configure it
-                // i2c.cr1.modify(|_, w| w.pe().clear_bit());
-
-                // // Calculate settings for I2C speed modes
-                // let clock = rcc.clocks.apb1_clk().0;
-                // let freq = clock / 1_000_000;
-                // assert!(freq >= 2 && freq <= 50);
-
-                // TODO: Replace with TIMINGR configuration
-                /*
-                // Configure bus frequency into I2C peripheral
-                //i2c.cr2.write(|w| unsafe { w.freq().bits(freq as u8) });
-
-                //let trise = if speed <= 100_u32.khz().into() {
-                //    freq + 1
-                //} else {
-                //    (freq * 300) / 1000 + 1
-                //};
-
-                // Configure correct rise times
-                //i2c.trise.write(|w| w.trise().bits(trise as u8));
-
-                // I2C clock control calculation
-                if speed <= 100_u32.khz().into() {
-                    let ccr = {
-                        let ccr = clock / (speed.0 * 2);
-                        if ccr < 4 {
-                            4
-                        } else {
-                            ccr
-                        }
-                    };
-
-                    // Set clock to standard mode with appropriate parameters for selected speed
-                    i2c.ccr.write(|w| unsafe {
-                        w.f_s()
-                            .clear_bit()
-                            .duty()
-                            .clear_bit()
-                            .ccr()
-                            .bits(ccr as u16)
-                    });
-                } else {
-                    const DUTYCYCLE: u8 = 0;
-                    if DUTYCYCLE == 0 {
-                        let ccr = clock / (speed.0 * 3);
-                        let ccr = if ccr < 1 { 1 } else { ccr };
-
-                        // Set clock to fast mode with appropriate parameters for selected speed (2:1 duty cycle)
-                        i2c.ccr.write(|w| unsafe {
-                            w.f_s().set_bit().duty().clear_bit().ccr().bits(ccr as u16)
-                        });
-                    } else {
-                        let ccr = clock / (speed.0 * 25);
-                        let ccr = if ccr < 1 { 1 } else { ccr };
-
-                        // Set clock to fast mode with appropriate parameters for selected speed (16:9 duty cycle)
-                        i2c.ccr.write(|w| unsafe {
-                            w.f_s().set_bit().duty().set_bit().ccr().bits(ccr as u16)
-                        });
-                    }
+    ($I2CX:ident, $i2cxen:ident, $i2crst:ident,
+        sda: [ $(($PSDA:ty, $afsda:expr),)+ ],
+        scl: [ $(($PSCL:ty, $afscl:expr),)+ ],
+    ) => {
+        $(
+            impl SDAPin<$I2CX> for $PSDA {
+                fn setup(&self) {
+                    self.set_alt_mode($afsda)
                 }
-                */
-                // Enable the I2C processing
-                i2c.cr1.modify(|_, w| w.pe().set_bit());
-
-                I2c { i2c, pins }
             }
+        )+
 
-            pub fn release(self) -> ($I2CX, PINS) {
-                (self.i2c, self.pins)
+        $(
+            impl SCLPin<$I2CX> for $PSCL {
+                fn setup(&self) {
+                    self.set_alt_mode($afscl)
+                }
             }
+        )+
 
-            #[allow(dead_code)]
-            fn send_byte(&self, byte: u8) -> Result<(), Error> {
-                // Wait until we're ready for sending
-                while self.i2c.isr.read().txe().bit_is_clear() {}
-
-                // Push out a byte of data
-                self.i2c.txdr.write(|w| w.txdata().bits(byte));
-
-                // While until byte is transferred
-                while {
-                    let sr1 = self.i2c.isr.read();
-
-                    // If we received a NACK, then this is an error
-                    if sr1.nackf().bit_is_set() {
-                        return Err(Error::NACK);
-                    }
-
-                    sr1.tcr().bit_is_clear()
-                } {}
-
-                Ok(())
-            }
-
-            #[allow(dead_code)]
-            fn recv_byte(&self) -> Result<u8, Error> {
-                while self.i2c.isr.read().rxne().bit_is_clear() {}
-                //let value = self.i2c.dr.read().bits() as u8;
-                //Ok(value)
-                Ok(0)
-            }
-        }
-
-        impl<PINS> WriteRead for I2c<$I2CX, PINS> {
-            type Error = Error;
-
-            fn write_read(
-                &mut self,
-                addr: u8,
-                bytes: &[u8],
-                buffer: &mut [u8],
-            ) -> Result<(), Self::Error> {
-                self.write(addr, bytes)?;
-                self.read(addr, buffer)?;
-
-                Ok(())
-            }
-        }
-
-        impl<PINS> Write for I2c<$I2CX, PINS> {
-            type Error = Error;
-
-            fn write(&mut self, _addr: u8, _bytes: &[u8]) -> Result<(), Self::Error> {
-                // Send a START condition
-                self.i2c.cr2.modify(|_, w| w.start().set_bit());
-
-                // // Wait until START condition was generated
-                // while {
-                //     let sr1 = self.i2c.isr.read();
-                //     sr1.sb().bit_is_clear()
-                // } {}
-
-                // // Also wait until signalled we're master and everything is waiting for us
-                // while {
-                //     let sr2 = self.i2c.sr2.read();
-                //     sr2.msl().bit_is_clear() && sr2.busy().bit_is_clear()
-                // } {}
-
-                // // Set up current address, we're trying to talk to
-                // self.i2c
-                //     .dr
-                //     .write(|w| unsafe { w.bits(u32::from(addr) << 1) });
-
-                // // Wait until address was sent
-                // while {
-                //     let sr1 = self.i2c.sr1.read();
-                //     sr1.addr().bit_is_clear()
-                // } {}
-
-                // // Clear condition by reading SR2
-                // self.i2c.sr2.read();
-
-                // // Send bytes
-                // for c in bytes {
-                //     self.send_byte(*c)?;
-                // }
-
-                // Fallthrough is success
-                Ok(())
-            }
-        }
-
-        impl<PINS> Read for I2c<$I2CX, PINS> {
-            type Error = Error;
-
-            fn read(&mut self, _addr: u8, _buffer: &mut [u8]) -> Result<(), Self::Error> {
-                // Send a START condition and set ACK bit
-                // self.i2c
-                //     .cr1
-                //     .modify(|_, w| w.start().set_bit().ack().set_bit());
-
-                // // Wait until START condition was generated
-                // while {
-                //     let sr1 = self.i2c.sr1.read();
-                //     sr1.sb().bit_is_clear()
-                // } {}
-
-                // // Also wait until signalled we're master and everything is waiting for us
-                // while {
-                //     let sr2 = self.i2c.sr2.read();
-                //     sr2.msl().bit_is_clear() && sr2.busy().bit_is_clear()
-                // } {}
-
-                // // Set up current address, we're trying to talk to
-                // self.i2c
-                //     .dr
-                //     .write(|w| unsafe { w.bits((u32::from(addr) << 1) + 1) });
-
-                // // Wait until address was sent
-                // while {
-                //     let sr1 = self.i2c.sr1.read();
-                //     sr1.addr().bit_is_clear()
-                // } {}
-
-                // // Clear condition by reading SR2
-                // self.i2c.sr2.read();
-
-                // // Receive bytes into buffer
-                // for c in buffer {
-                //     *c = self.recv_byte()?;
-                // }
-
-                // // Send STOP condition
-                // self.i2c.cr1.modify(|_, w| w.stop().set_bit());
-
-                // Fallthrough is success
-                Ok(())
-            }
-        }
-
-        pub trait $I2cxExt {
-            fn i2c<PINS, T>(self, pins: PINS, speed: T, rcc: &mut Rcc) -> I2c<$I2CX, PINS>
+        impl I2cExt<$I2CX> for $I2CX {
+            fn i2c<SDA, SCL>(
+                self,
+                sda: SDA,
+                scl: SCL,
+                freq: Hertz,
+                rcc: &mut Rcc,
+            ) -> I2c<$I2CX, SDA, SCL>
             where
-                PINS: Pins<$I2CX>,
-                T: Into<Hertz>;
-        }
-
-        impl $I2cxExt for $I2CX {
-            fn i2c<PINS, T>(self, pins: PINS, speed: T, rcc: &mut Rcc) -> I2c<$I2CX, PINS>
-            where
-                PINS: Pins<$I2CX>,
-                T: Into<Hertz>,
+                SDA: SDAPin<$I2CX>,
+                SCL: SCLPin<$I2CX>,
             {
-                I2c::$i2cx(self, pins, speed.into(), rcc)
+                I2c::new(self, sda, scl, freq, rcc)
+            }
+        }
+
+        impl Instance for $I2CX {
+            fn initialize(&self, rcc: &mut Rcc) {
+                // Enable clock for I2C
+                rcc.rb.apb1enr.modify(|_, w| w.$i2cxen().set_bit());
+
+                // Reset I2C
+                rcc.rb.apb1rstr.modify(|_, w| w.$i2crst().set_bit());
+                rcc.rb.apb1rstr.modify(|_, w| w.$i2crst().clear_bit());
             }
         }
     };
 }
 
-i2c!(I2C1, i2c1, i2c1en, i2c1rst, I2c1Ext);
+#[cfg(feature = "stm32l0x1")]
+i2c!(
+    I2C1,
+    i2c1en,
+    i2c1rst,
+    sda: [
+        (PB7<Output<OpenDrain>>, AltMode::AF1),
+        (PA10<Output<OpenDrain>>, AltMode::AF1),
+        (PA13<Output<OpenDrain>>, AltMode::AF3),
+    ],
+    scl: [
+        (PB6<Output<OpenDrain>>, AltMode::AF1),
+        (PA9<Output<OpenDrain>>, AltMode::AF1),
+        (PA4<Output<OpenDrain>>, AltMode::AF3),
+    ],
+);
+
+#[cfg(feature = "stm32l0x2")]
+i2c!(
+    I2C1,
+    i2c1en,
+    i2c1rst,
+    sda: [
+        (PA10<Output<OpenDrain>>, AltMode::AF6),
+        (PB7<Output<OpenDrain>>,  AltMode::AF1),
+        (PB9<Output<OpenDrain>>,  AltMode::AF4),
+    ],
+    scl: [
+        (PA9<Output<OpenDrain>>, AltMode::AF6),
+        (PB6<Output<OpenDrain>>, AltMode::AF1),
+        (PB8<Output<OpenDrain>>, AltMode::AF4),
+    ],
+);
+
+#[cfg(feature = "stm32l0x2")]
+i2c!(
+    I2C2,
+    i2c2en,
+    i2c2rst,
+    sda: [
+        (PB11<Output<OpenDrain>>, AltMode::AF6),
+        (PB14<Output<OpenDrain>>, AltMode::AF5),
+    ],
+    scl: [
+        (PA10<Output<OpenDrain>>, AltMode::AF6),
+        (PA13<Output<OpenDrain>>, AltMode::AF5),
+    ],
+);
+
+#[cfg(feature = "stm32l0x2")]
+i2c!(
+    I2C3,
+    i2c3en,
+    i2c3rst,
+    sda: [
+        (PB4<Output<OpenDrain>>, AltMode::AF7),
+        (PC1<Output<OpenDrain>>, AltMode::AF7),
+    ],
+    scl: [
+        (PA8<Output<OpenDrain>>, AltMode::AF7),
+        (PC0<Output<OpenDrain>>, AltMode::AF7),
+    ],
+);
