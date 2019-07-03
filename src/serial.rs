@@ -409,7 +409,7 @@ macro_rules! usart {
                         (*$USARTX::ptr()).icr.write(|w| {w.tccf().set_bit()});
                     }
 
-
+                    Ok(())
                 }
 
                 fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
