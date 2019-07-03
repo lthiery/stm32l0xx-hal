@@ -401,17 +401,15 @@ macro_rules! usart {
                     // NOTE(unsafe) atomic read with no side effects
                     let isr = unsafe { (*$USARTX::ptr()).isr.read() };
 
+                    // Check TC bit on ISR
+                    while !isr.tc().bit_is_set() {}
+
                     // Frame complete, set the TC Clear Flag
                     unsafe {
                         (*$USARTX::ptr()).icr.write(|w| {w.tccf().set_bit()});
                     }
 
-                    // Check TC bit on ISR
-                    if isr.tc().bit_is_set() {
-                        Ok(())
-                    } else {
-                        Err(nb::Error::WouldBlock)
-                    }
+
                 }
 
                 fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
@@ -456,7 +454,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        block!(self.flush());
+        self.flush();
 
         Ok(())
     }
@@ -473,7 +471,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        block!(self.flush());
+        self.flush();
 
         Ok(())
     }
