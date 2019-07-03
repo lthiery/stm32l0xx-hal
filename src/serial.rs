@@ -456,7 +456,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        self.flush();//.map_err(|_| fmt::Error)?;
+        block!(self.flush());
 
         Ok(())
     }
@@ -473,7 +473,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        self.flush();//.map_err(|_| fmt::Error)?;
+        block!(self.flush());
 
         Ok(())
     }
