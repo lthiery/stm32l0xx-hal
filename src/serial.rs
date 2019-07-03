@@ -6,15 +6,10 @@ use crate::gpio::gpioa::*;
 use crate::gpio::{AltMode, Floating, Input};
 use crate::hal;
 use crate::hal::prelude::*;
-pub use crate::pac::USART2;
 use crate::rcc::Rcc;
 use nb::block;
 
-#[cfg(feature = "stm32l0x1")]
-pub use crate::pac::LPUART1;
-
-#[cfg(feature = "stm32l0x2")]
-pub use crate::pac::USART1;
+pub use crate::pac::{USART1, USART2};
 
 /// Serial error
 #[derive(Debug)]
@@ -130,7 +125,7 @@ pub trait Pins<USART> {
 }
 
 #[cfg(feature = "stm32l0x1")]
-impl Pins<LPUART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
+impl Pins<USART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
     fn setup(&self) {
         self.0.set_alt_mode(AltMode::AF6);
         self.1.set_alt_mode(AltMode::AF6);
@@ -138,7 +133,7 @@ impl Pins<LPUART1> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
 }
 
 #[cfg(feature = "stm32l0x2")]
-impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
+impl Pins<USART2> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
     fn setup(&self) {
         self.0.set_alt_mode(AltMode::AF4);
         self.1.set_alt_mode(AltMode::AF4);
@@ -146,7 +141,7 @@ impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
 }
 
 #[cfg(feature = "stm32l0x2")]
-impl Pins<USART2> for (PA2<Input<Floating>>, PA3<Input<Floating>>) {
+impl Pins<USART1> for (PA9<Input<Floating>>, PA10<Input<Floating>>) {
     fn setup(&self) {
         self.0.set_alt_mode(AltMode::AF4);
         self.1.set_alt_mode(AltMode::AF4);
@@ -223,15 +218,9 @@ macro_rules! usart {
                     let div = (rcc.clocks.$pclkX().0 * 25) / (4 * config.baudrate.0);
                     let mantissa = div / 100;
                     let fraction = ((div - mantissa * 100) * 16 + 50) / 100;
-                    let mut brr = mantissa << 4 | fraction;
-
-                    if stringify!($usartX) == "lpuart1" {
-                        brr = brr*256
-                    }
-
                     usart
                         .brr
-                        .write(|w| unsafe { w.bits(brr) });
+                        .write(|w| unsafe { w.bits(mantissa << 4 | fraction) });
 
                     // Reset other registers to disable advanced USART features
                     usart.cr2.reset();
@@ -261,7 +250,7 @@ macro_rules! usart {
                             })
                     });
 
-                    usart.cr2.write(|w|
+                    usart.cr2.write(|w| 
                         w.stop().bits(match config.stopbits {
                             StopBits::STOP1 => 0b00,
                             StopBits::STOP0P5 => 0b01,
@@ -344,6 +333,7 @@ macro_rules! usart {
 
             impl hal::serial::Read<u8> for Rx<$USARTX> {
                 type Error = Error;
+
 
                 fn read(&mut self) -> nb::Result<u8, Error> {
                     // NOTE(unsafe) atomic read with no side effects
@@ -433,13 +423,6 @@ macro_rules! usart {
     }
 }
 
-#[cfg(feature = "stm32l0x1")]
-usart! {
-    LPUART1: (lpuart1, apb1enr, lpuart1en, apb1_clk, Serial1Ext),
-    USART2: (usart2, apb1enr, usart2en, apb1_clk, Serial2Ext),
-}
-
-#[cfg(feature = "stm32l0x2")]
 usart! {
     USART1: (usart1, apb2enr, usart1en, apb2_clk, Serial1Ext),
     USART2: (usart2, apb1enr, usart2en, apb1_clk, Serial2Ext),
@@ -456,7 +439,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        self.flush().map_err(|_| fmt::Error)?;
+        self.flush();
 
         Ok(())
     }
@@ -473,7 +456,7 @@ where
             .map(|c| block!(self.write(*c)))
             .last();
 
-        self.flush().map_err(|_| fmt::Error)?;
+        self.flush();
 
         Ok(())
     }
