@@ -3,17 +3,10 @@
 
 
 extern crate panic_halt;
-use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
-use core::ops::DerefMut;
-use core::borrow::BorrowMut;
 
 use core::pin::Pin;
 
-use cortex_m::{
-    asm,
-    interrupt,
-};
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{
     prelude::*,
