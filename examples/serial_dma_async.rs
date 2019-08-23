@@ -5,7 +5,10 @@
 extern crate panic_halt;
 use cortex_m::interrupt::Mutex;
 
-use core::pin::Pin;
+use core::{
+    cell::RefCell,
+    pin::Pin,
+};
 
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{
@@ -31,7 +34,7 @@ enum State {
 }
 
 static mut BUFFER: [u8; 1] = [0;1];
-static STATE: Mutex<State> = Mutex::new(State::READY);
+static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State::READY));
 
 
 #[entry]
@@ -62,8 +65,8 @@ fn main() -> ! {
 
     loop {
         cortex_m::interrupt::free(|cs| {
-            let mut state = STATE.borrow(cs);
-            match state {
+            let mut state = STATE.borrow(cs).borrow_mut();
+            match *state {
                 State::READY => {
                     if let Some(uart_rx) = rx_stash.take() {
                 
@@ -84,7 +87,7 @@ fn main() -> ! {
                             });
                            
                             transfer_stash = Some(transfer.start());
-                            state = &State::RECEIVING;
+                            *state = State::RECEIVING;
                             rx_stash = None;
                         
                     } else {
@@ -161,12 +164,12 @@ fn main() -> ! {
 
 fn DMA1_CHANNEL4_7() {
     cortex_m::interrupt::free(|cs| {
-         let mut state = STATE.borrow(cs);
-         match state {
+         let mut state = STATE.borrow(cs).borrow_mut();
+         match *state {
             State::READY | State::RECEIVED | State::SENT  =>
                 panic!("Should not interrupt in this state!"),
-            State::RECEIVING => state = &State::RECEIVED,
-            State::SENDING => state = &State::RECEIVED,
+            State::RECEIVING => *state = State::RECEIVED,
+            State::SENDING   => *state = State::RECEIVED,
          }
     });
 
