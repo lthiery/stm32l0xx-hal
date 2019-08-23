@@ -73,11 +73,22 @@ fn main() -> ! {
         .unwrap()
         .split();
 
+    // As far as the compiler is concerned, if we use a struct's field in a
+    // closure, we're moving the struct into the closure. Even if we only borrow
+    // those fields. This affects us when we access fields of `dma` in the
+    // closure. The compiler says we've moved `dma` into the closure and
+    // prevents us from using it again.
+    //
+    // Maybe there's a good reason for this behavior, or maybe the compiler
+    // could be a bit smarter about these things. Doesn't really matter to us,
+    // as there's a relatively simple workaround. Assign the fields we need to
+    // variables, then use just those variables in the closure. This helps the
+    // compiler getting things straight, so it leaves us alone.
+    let dma_handle = &mut dma.handle;
+    let rx_channel = dma.channels.channel5;
+
     cortex_m::interrupt::free(|cs|
-        *STATE.borrow(cs).borrow_mut() = State::READY(
-            rx,
-            dma.channels.channel5,
-        )
+        *STATE.borrow(cs).borrow_mut() = State::READY(rx, rx_channel)
     );
 
     loop {
@@ -116,7 +127,7 @@ fn main() -> ! {
                                 unsafe { &mut BUFFER}
                             );
                             let mut transfer = rx.read_all(
-                                &mut dma.handle,
+                                dma_handle,
                                 pin_buffer,
                                 channel,
                             );
