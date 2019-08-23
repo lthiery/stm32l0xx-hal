@@ -169,7 +169,7 @@ fn DMA1_CHANNEL4_7() {
             State::READY | State::RECEIVED | State::SENT  =>
                 panic!("Should not interrupt in this state!"),
             State::RECEIVING => *state = State::RECEIVED,
-            State::SENDING   => *state = State::RECEIVED,
+            State::SENDING   => *state = State::SENT,
          }
     });
 
