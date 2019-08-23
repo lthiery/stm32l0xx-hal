@@ -33,8 +33,8 @@ enum State {
     READY(RxTarget, RxChannel),
     RECEIVING(RxTransfer),
     RECEIVED(RxTransfer),
-    SENDING(TxTransfer),
-    SENT(TxTransfer),
+    // SENDING(TxTransfer),
+    // SENT(TxTransfer),
 }
 
 type RxTarget   = serial::Rx<serial::USART2>;
@@ -45,7 +45,7 @@ type RxTransfer = dma::Transfer<RxTarget, RxChannel, RxBuffer, dma::Started>;
 // Placeholder. Currently no sending is done in this example, so I didn't see
 // the need to figure out the correct type for the transmission channel right
 // now.
-type TxTransfer = ();
+// type TxTransfer = ();
 
 
 static mut BUFFER: [u8; 1] = [0;1];
@@ -223,7 +223,7 @@ fn DMA1_CHANNEL4_7() {
             |state| {
                 match state {
                     State::RECEIVING(transfer) => State::RECEIVED(transfer),
-                    State::SENDING(transfer)   => State::SENT(transfer),
+                    // State::SENDING(transfer)   => State::SENT(transfer),
 
                     _ => panic!("Should not interrupt in this state!"),
                  }
