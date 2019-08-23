@@ -62,7 +62,7 @@ fn main() -> ! {
 
     loop {
         cortex_m::interrupt::free(|cs| {
-            let mut state = *STATE.borrow(cs).borrow_mut();
+            let mut state = STATE.borrow(cs);
             match state {
                 State::READY => {
                     if let Some(uart_rx) = rx_stash.take() {
@@ -161,7 +161,7 @@ fn main() -> ! {
 
 fn DMA1_CHANNEL4_7() {
     cortex_m::interrupt::free(|cs| {
-         let mut state = *STATE.borrow(cs).borrow_mut();
+         let mut state = STATE.borrow(cs);
          match state {
             State::READY | State::RECEIVED | State::SENT  =>
                 panic!("Should not interrupt in this state!"),
