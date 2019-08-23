@@ -28,19 +28,18 @@ use stm32l0xx_hal::{
 };
 
 enum State {
-    READY,
+    UNINITIALIZED,
+    READY(RxTarget, RxChannel),
     RECEIVING(RxTransfer),
     RECEIVED(RxTransfer),
     SENDING(TxTransfer),
     SENT(TxTransfer),
 }
 
-type RxTransfer = dma::Transfer<
-    serial::Rx<serial::USART2>,
-    dma::Channel5,
-    &'static mut [u8; 1],
-    dma::Started,
->;
+type RxTarget   = serial::Rx<serial::USART2>;
+type RxChannel  = dma::Channel5;
+type RxBuffer   = &'static mut [u8; 1];
+type RxTransfer = dma::Transfer<RxTarget, RxChannel, RxBuffer, dma::Started>;
 
 // Placeholder. Currently no sending is done in this example, so I didn't see
 // the need to figure out the correct type for the transmission channel right
@@ -49,7 +48,8 @@ type TxTransfer = ();
 
 
 static mut BUFFER: [u8; 1] = [0;1];
-static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State::READY));
+static STATE: Mutex<RefCell<State>> =
+    Mutex::new(RefCell::new(State::UNINITIALIZED));
 
 
 #[entry]
@@ -73,9 +73,12 @@ fn main() -> ! {
         .unwrap()
         .split();
 
-    //let maybe_tx = Some(tx);
-    let mut rx_stash = Some(rx);
-    //let mut dma_stash = Some(dma);
+    cortex_m::interrupt::free(|cs|
+        *STATE.borrow(cs).borrow_mut() = State::READY(
+            rx,
+            dma.channels.channel5,
+        )
+    );
 
     loop {
         cortex_m::interrupt::free(|cs| {
@@ -107,38 +110,31 @@ fn main() -> ! {
                     // what we want, as long as we return a new state from the
                     // closure.
                     match state {
-                        State::READY => {
-                            if let Some(uart_rx) = rx_stash.take() {
-                                // Prepare read transfer
-                                let pin_buffer = Pin::new(
-                                    unsafe { &mut BUFFER}
-                                );
-                                let mut transfer = uart_rx.read_all(
-                                    &mut dma.handle,
-                                    pin_buffer,
-                                    dma.channels.channel5,
-                                );
+                        State::READY(rx, channel) => {
+                            // Prepare read transfer
+                            let pin_buffer = Pin::new(
+                                unsafe { &mut BUFFER}
+                            );
+                            let mut transfer = rx.read_all(
+                                &mut dma.handle,
+                                pin_buffer,
+                                channel,
+                            );
 
-                                cp.NVIC.enable(Interrupt::DMA1_CHANNEL4_7);
+                            cp.NVIC.enable(Interrupt::DMA1_CHANNEL4_7);
 
-                                transfer.enable_interrupts(dma::Interrupts {
-                                    transfer_error:    true,
-                                    transfer_complete: true,
-                                    .. dma::Interrupts::default()
-                                });
+                            transfer.enable_interrupts(dma::Interrupts {
+                                transfer_error:    true,
+                                transfer_complete: true,
+                                .. dma::Interrupts::default()
+                            });
 
-                                rx_stash = None;
-                                State::RECEIVING(transfer.start())
-                            } else {
-                                panic!("Rx was not put back!");
-                            }
+                            State::RECEIVING(transfer.start())
                         }
                         State::RECEIVED(transfer) => {
                             let res = transfer.wait().unwrap();
-                            rx_stash = Some(res.target);
-                            dma.channels.channel5 = res.channel;
 
-                            State::READY
+                            State::READY(res.target, res.channel)
                         }
                         state => {
                             // Currently we don't handle any other states. Let's
@@ -213,10 +209,10 @@ fn DMA1_CHANNEL4_7() {
             || panic!("Panic during state transition"),
             |state| {
                 match state {
-                    State::READY | State::RECEIVED(_) | State::SENT(_)  =>
-                        panic!("Should not interrupt in this state!"),
                     State::RECEIVING(transfer) => State::RECEIVED(transfer),
                     State::SENDING(transfer)   => State::SENT(transfer),
+
+                    _ => panic!("Should not interrupt in this state!"),
                  }
             },
         );
