@@ -22,6 +22,7 @@ use stm32l0xx_hal::{
     pac::{
         self,
         Interrupt,
+        interrupt,
     },
     rcc::Config,
     serial,
@@ -210,6 +211,7 @@ fn main() -> ! {
     }
 }
 
+#[interrupt]
 fn DMA1_CHANNEL4_7() {
     cortex_m::interrupt::free(|cs| {
          let mut state = STATE.borrow(cs).borrow_mut();
