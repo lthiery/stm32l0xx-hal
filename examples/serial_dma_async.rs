@@ -45,7 +45,7 @@ fn main() -> ! {
 
     // let mut rx_channel = 
 
-    let (mut tx, mut rx) = dp
+    let (_tx, rx) = dp
         .USART2
         .usart(
             (gpioa.pa2, gpioa.pa3),
@@ -68,7 +68,7 @@ fn main() -> ! {
                     if let Some(uart_rx) = rx_stash.take() {
                 
                             // Prepare read transfer
-                            let mut pin_buffer = Pin::new(unsafe { &mut BUFFER});
+                            let pin_buffer = Pin::new(unsafe { &mut BUFFER});
                             let mut transfer = uart_rx.read_all(
                                 &mut dma.handle,
                                 pin_buffer,
