@@ -6,14 +6,7 @@
 extern crate panic_halt;
 
 use rtfm::app;
-use stm32l0xx_hal::{
-    exti::TriggerEdge,
-    gpio::*,
-    pac,
-    prelude::*,
-    rcc::Config,
-    syscfg::SYSCFG,
-};
+use stm32l0xx_hal::{exti::TriggerEdge, gpio::*, pac, prelude::*, rcc::Config, syscfg::SYSCFG};
 
 #[app(device = stm32l0xx_hal::pac)]
 const APP: () = {
@@ -42,12 +35,7 @@ const APP: () = {
 
         // Configure the external interrupt on the falling edge for the pin 0.
         let exti = device.EXTI;
-        exti.listen(
-            &mut syscfg,
-            button.port,
-            button.i,
-            TriggerEdge::Falling,
-        );
+        exti.listen(&mut syscfg, button.port, button.i, TriggerEdge::Falling);
 
         // Return the initialised resources.
         init::LateResources {

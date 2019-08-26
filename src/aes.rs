@@ -2,20 +2,13 @@
 //!
 //! See STM32L0x2 reference manual, chapter 18.
 
-
 use core::{
     convert::TryInto,
-    ops::{
-        Deref,
-        DerefMut,
-    },
+    ops::{Deref, DerefMut},
     pin::Pin,
 };
 
-use as_slice::{
-    AsMutSlice,
-    AsSlice,
-};
+use as_slice::{AsMutSlice, AsSlice};
 use nb::block;
 use void::Void;
 
@@ -23,14 +16,10 @@ use crate::{
     dma,
     pac::{
         self,
-        aes::{
-            self,
-            cr,
-        },
+        aes::{self, cr},
     },
     rcc::Rcc,
 };
-
 
 /// Entry point to the AES API
 pub struct AES {
@@ -51,16 +40,18 @@ impl AES {
         aes.cr.write(|w| {
             w
                 // Enable DMA
-                .dmaouten().set_bit()
-                .dmainen().set_bit()
+                .dmaouten()
+                .set_bit()
+                .dmainen()
+                .set_bit()
                 // Disable interrupts
-                .errie().clear_bit()
-                .ccfie().clear_bit()
+                .errie()
+                .clear_bit()
+                .ccfie()
+                .clear_bit()
         });
 
-        Self {
-            aes,
-        }
+        Self { aes }
     }
 
     /// Enable the AES peripheral
@@ -71,7 +62,8 @@ impl AES {
     /// Consumes the `AES` instance. You can get it back later once you're done
     /// with the `Stream`, using [`Stream::disable`].
     pub fn enable<M>(self, mode: M, key: [u32; 4]) -> Stream
-        where M: Mode
+    where
+        M: Mode,
     {
         // Write key. This is safe, as the register accepts the full range of
         // `u32`.
@@ -96,12 +88,11 @@ impl AES {
 
         Stream {
             aes: self,
-            rx:  Rx(()),
-            tx:  Tx(()),
+            rx: Rx(()),
+            tx: Tx(()),
         }
     }
 }
-
 
 /// An active encryption/decryption stream
 ///
@@ -144,7 +135,6 @@ impl Stream {
     }
 }
 
-
 /// Can be used to write data to the AES peripheral
 ///
 /// You can access this struct via [`Stream`].
@@ -169,11 +159,11 @@ impl Tx {
         // Write input data to DINR
         //
         // See STM32L0x2 reference manual, section 18.4.10.
-        for i in (0 .. 4).rev() {
+        for i in (0..4).rev() {
             dinr.write(|w| {
                 let i = i * 4;
 
-                let word = &block[i .. i+4];
+                let word = &block[i..i + 4];
                 // Can't panic, because `word` is 4 bytes long.
                 let word = word.try_into().unwrap();
                 let word = u32::from_le_bytes(word);
@@ -206,17 +196,17 @@ impl Tx {
     /// length must be a multiple of 16. Panics, if this is not the case.
     ///
     /// Panics, if the buffer is not aligned to a word boundary.
-    pub fn write_all<Buffer, Channel>(self,
-        dma:     &mut dma::Handle,
-        buffer:  Pin<Buffer>,
+    pub fn write_all<Buffer, Channel>(
+        self,
+        dma: &mut dma::Handle,
+        buffer: Pin<Buffer>,
         channel: Channel,
-    )
-        -> Transfer<Self, Channel, Buffer, dma::Ready>
-        where
-            Self:           dma::Target<Channel>,
-            Buffer:         Deref + 'static,
-            Buffer::Target: AsSlice<Element=u8>,
-            Channel:        dma::Channel,
+    ) -> Transfer<Self, Channel, Buffer, dma::Ready>
+    where
+        Self: dma::Target<Channel>,
+        Buffer: Deref + 'static,
+        Buffer::Target: AsSlice<Element = u8>,
+        Channel: dma::Channel,
     {
         assert!(buffer.as_slice().len() % 16 == 0);
 
@@ -244,7 +234,6 @@ impl Tx {
     }
 }
 
-
 /// Can be used to read data from the AES peripheral
 ///
 /// You can access this struct via [`Stream`].
@@ -270,13 +259,13 @@ impl Rx {
         //
         // See STM32L0x2 reference manual, section 18.4.10.
         let mut block = [0; 16];
-        for i in (0 .. 4).rev() {
+        for i in (0..4).rev() {
             let i = i * 4;
 
             let word = doutr.read().bits();
             let word = word.to_le_bytes();
 
-            (&mut block[i .. i+4]).copy_from_slice(&word);
+            (&mut block[i..i + 4]).copy_from_slice(&word);
         }
 
         // Clear CCF flag
@@ -298,17 +287,17 @@ impl Rx {
     /// length must be a multiple of 16. Panics, if this is not the case.
     ///
     /// Panics, if the buffer is not aligned to a word boundary.
-    pub fn read_all<Buffer, Channel>(self,
-        dma:     &mut dma::Handle,
-        buffer:  Pin<Buffer>,
+    pub fn read_all<Buffer, Channel>(
+        self,
+        dma: &mut dma::Handle,
+        buffer: Pin<Buffer>,
         channel: Channel,
-    )
-        -> Transfer<Self, Channel, Buffer, dma::Ready>
-        where
-            Self:           dma::Target<Channel>,
-            Buffer:         DerefMut + 'static,
-            Buffer::Target: AsMutSlice<Element=u8>,
-            Channel:        dma::Channel,
+    ) -> Transfer<Self, Channel, Buffer, dma::Ready>
+    where
+        Self: dma::Target<Channel>,
+        Buffer: DerefMut + 'static,
+        Buffer::Target: AsMutSlice<Element = u8>,
+        Channel: dma::Channel,
     {
         assert!(buffer.as_slice().len() % 16 == 0);
 
@@ -335,7 +324,6 @@ impl Rx {
         }
     }
 }
-
 
 /// Implemented for all chaining modes
 ///
@@ -376,12 +364,9 @@ impl dyn Mode {
 
     /// Use this with [`AES::enable`] to encrypt or decrypt using CTR
     pub fn ctr(init_vector: [u32; 3]) -> CTR {
-        CTR {
-            init_vector,
-        }
+        CTR { init_vector }
     }
 }
-
 
 /// The ECB (electronic code book) chaining mode
 ///
@@ -402,9 +387,11 @@ impl Mode for ECB<Encrypt> {
         unsafe {
             w
                 // Select ECB chaining mode
-                .chmod().bits(0b00)
+                .chmod()
+                .bits(0b00)
                 // Select encryption mode
-                .mode().bits(0b00);
+                .mode()
+                .bits(0b00);
         }
     }
 }
@@ -419,13 +406,14 @@ impl Mode for ECB<Decrypt> {
         unsafe {
             w
                 // Select ECB chaining mode
-                .chmod().bits(0b00)
+                .chmod()
+                .bits(0b00)
                 // Select decryption mode
-                .mode().bits(0b10);
+                .mode()
+                .bits(0b10);
         }
     }
 }
-
 
 /// The CBC (cipher block chaining) chaining mode
 ///
@@ -435,7 +423,7 @@ impl Mode for ECB<Decrypt> {
 /// You gen get an instance of this struct via [`Mode::cbc_encrypt`] or
 /// [`Mode::cbc_decrypt`].
 pub struct CBC<Mode> {
-    _mode:       Mode,
+    _mode: Mode,
     init_vector: [u32; 4],
 }
 
@@ -453,9 +441,11 @@ impl Mode for CBC<Encrypt> {
         unsafe {
             w
                 // Select CBC chaining mode
-                .chmod().bits(0b01)
+                .chmod()
+                .bits(0b01)
                 // Select encryption mode
-                .mode().bits(0b00);
+                .mode()
+                .bits(0b00);
         }
     }
 }
@@ -476,13 +466,14 @@ impl Mode for CBC<Decrypt> {
         unsafe {
             w
                 // Select CBC chaining mode
-                .chmod().bits(0b01)
+                .chmod()
+                .bits(0b01)
                 // Select decryption mode
-                .mode().bits(0b10);
+                .mode()
+                .bits(0b10);
         }
     }
 }
-
 
 /// The CTR (counter) chaining mode
 ///
@@ -511,15 +502,16 @@ impl Mode for CTR {
         unsafe {
             w
                 // Select Counter Mode (CTR) mode
-                .chmod().bits(0b10)
+                .chmod()
+                .bits(0b10)
                 // These bits mean encryption mode, but in CTR mode,
                 // encryption and descryption are technically identical, so this
                 // is fine for either mode.
-                .mode().bits(0b00);
+                .mode()
+                .bits(0b00);
         }
     }
 }
-
 
 fn derive_key(aes: &aes::RegisterBlock) {
     // Select key derivation mode. This is safe, as we're writing a valid bit
@@ -534,13 +526,11 @@ fn derive_key(aes: &aes::RegisterBlock) {
     while aes.sr.read().ccf().bit_is_clear() {}
 }
 
-
 /// Used to identify encryption mode
 pub struct Encrypt;
 
 /// Used to identify decryption mode
 pub struct Decrypt;
-
 
 /// A 128-bit block
 ///
@@ -548,13 +538,11 @@ pub struct Decrypt;
 /// of processing.
 pub type Block = [u8; 16];
 
-
 #[derive(Debug)]
 pub enum Error {
     /// AES peripheral is busy
     Busy,
 }
-
 
 /// Wrapper around a [`dma::Transfer`].
 ///
@@ -563,15 +551,15 @@ pub enum Error {
 /// slices.
 pub struct Transfer<Target, Channel, Buffer, State> {
     buffer: Pin<Buffer>,
-    inner:  dma::Transfer<Target, Channel, dma::PtrBuffer<u32>, State>,
+    inner: dma::Transfer<Target, Channel, dma::PtrBuffer<u32>, State>,
 }
 
 impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Ready>
-    where
-        Target:         dma::Target<Channel>,
-        Channel:        dma::Channel,
-        Buffer:         Deref + 'static,
-        Buffer::Target: AsSlice<Element=u8>,
+where
+    Target: dma::Target<Channel>,
+    Channel: dma::Channel,
+    Buffer: Deref + 'static,
+    Buffer::Target: AsSlice<Element = u8>,
 {
     /// Create a new instance of `Transfer`
     ///
@@ -585,16 +573,14 @@ impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Ready>
     ///
     /// The caller must guarantee that the buffer length is a multiple of 4.
     unsafe fn new(
-        dma:      &mut dma::Handle,
-        target:   Target,
-        channel:  Channel,
-        buffer:   Pin<Buffer>,
-        address:  u32,
+        dma: &mut dma::Handle,
+        target: Target,
+        channel: Channel,
+        buffer: Pin<Buffer>,
+        address: u32,
         priority: dma::Priority,
-        dir:      dma::Direction,
-    )
-        -> Self
-    {
+        dir: dma::Direction,
+    ) -> Self {
         let transfer = dma::Transfer::new(
             dma,
             target,
@@ -612,7 +598,7 @@ impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Ready>
 
         Self {
             buffer: buffer,
-            inner:  transfer,
+            inner: transfer,
         }
     }
 
@@ -631,14 +617,14 @@ impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Ready>
     pub fn start(self) -> Transfer<Target, Channel, Buffer, dma::Started> {
         Transfer {
             buffer: self.buffer,
-            inner:  self.inner.start(),
+            inner: self.inner.start(),
         }
     }
 }
 
 impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Started>
-    where
-        Channel: dma::Channel,
+where
+    Channel: dma::Channel,
 {
     /// Indicates whether the transfer is still ongoing
     pub fn is_active(&self) -> bool {
@@ -653,25 +639,25 @@ impl<Target, Channel, Buffer> Transfer<Target, Channel, Buffer, dma::Started>
     ///
     /// This function will return immediately, if [`Transfer::is_active`]
     /// returns `false`.
-    pub fn wait(self)
-        -> Result<
-            dma::TransferResources<Target, Channel, Buffer>,
-            (dma::TransferResources<Target, Channel, Buffer>, dma::Error)
-        >
-    {
+    pub fn wait(
+        self,
+    ) -> Result<
+        dma::TransferResources<Target, Channel, Buffer>,
+        (dma::TransferResources<Target, Channel, Buffer>, dma::Error),
+    > {
         let (res, err) = match self.inner.wait() {
-            Ok(res)         => (res, None),
+            Ok(res) => (res, None),
             Err((res, err)) => (res, Some(err)),
         };
 
         let res = dma::TransferResources {
-            target:  res.target,
+            target: res.target,
             channel: res.channel,
-            buffer:  self.buffer,
+            buffer: self.buffer,
         };
 
         match err {
-            None      => Ok(res),
+            None => Ok(res),
             Some(err) => Err((res, err)),
         }
     }

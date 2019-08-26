@@ -1,18 +1,11 @@
 //! External interrupt controller
 use crate::bb;
 use crate::gpio;
-use crate::pac::{
-    self,
-    EXTI,
-};
+use crate::pac::{self, EXTI};
 use crate::pwr::PowerMode;
 use crate::syscfg::SYSCFG;
 
-use cortex_m::{
-    interrupt,
-    peripheral::NVIC,
-};
-
+use cortex_m::{interrupt, peripheral::NVIC};
 
 pub enum Interrupt {
     exti0_1,
@@ -27,19 +20,14 @@ pub enum TriggerEdge {
 }
 
 pub trait ExtiExt {
-    fn listen(
-        &self,
-        syscfg: &mut SYSCFG,
-        port: gpio::Port,
-        line: u8,
-        edge: TriggerEdge,
-    );
+    fn listen(&self, syscfg: &mut SYSCFG, port: gpio::Port, line: u8, edge: TriggerEdge);
     fn unlisten(&self, line: u8);
     fn pend_interrupt(&self, line: u8);
     fn clear_irq(&self, line: u8);
     fn get_pending_irq(&self) -> u32;
     fn wait_for_irq<M>(&mut self, line: u8, power_mode: M, nvic: &mut NVIC)
-        where M: PowerMode;
+    where
+        M: PowerMode;
 }
 
 pub fn line_is_triggered(reg: u32, line: u8) -> bool {
@@ -47,13 +35,7 @@ pub fn line_is_triggered(reg: u32, line: u8) -> bool {
 }
 
 impl ExtiExt for EXTI {
-    fn listen(
-        &self,
-        syscfg: &mut SYSCFG,
-        port: gpio::Port,
-        line: u8,
-        edge: TriggerEdge,
-    ) {
+    fn listen(&self, syscfg: &mut SYSCFG, port: gpio::Port, line: u8, edge: TriggerEdge) {
         assert!(line <= 22);
         assert_ne!(line, 18);
 
@@ -170,14 +152,15 @@ impl ExtiExt for EXTI {
     ///
     /// Panics, if `line` is not between 0 and 15 (inclusive).
     fn wait_for_irq<M>(&mut self, line: u8, mut power_mode: M, nvic: &mut NVIC)
-        where M: PowerMode
+    where
+        M: PowerMode,
     {
         let interrupt = match line {
-            0 ..=  1 => pac::Interrupt::EXTI0_1,
-            2 ..=  3 => pac::Interrupt::EXTI2_3,
-            4 ..= 15 => pac::Interrupt::EXTI4_15,
-            20       => pac::Interrupt::RTC,
-            line     => panic!("Line {} not supported", line),
+            0..=1 => pac::Interrupt::EXTI0_1,
+            2..=3 => pac::Interrupt::EXTI2_3,
+            4..=15 => pac::Interrupt::EXTI4_15,
+            20 => pac::Interrupt::RTC,
+            line => panic!("Line {} not supported", line),
         };
 
         // This construct allows us to wait for the interrupt without having to

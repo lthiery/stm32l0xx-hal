@@ -170,7 +170,6 @@ pub struct Rcc {
     pub(crate) rb: RCC,
 }
 
-
 /// Extension trait that freezes the `RCC` peripheral with provided clocks configuration
 pub trait RccExt {
     fn freeze(self, config: Config) -> Rcc;

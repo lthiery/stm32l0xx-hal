@@ -15,26 +15,17 @@ pub use crate::pac::LPUART1;
 
 #[cfg(feature = "stm32l0x2")]
 use core::{
-    ops::{
-        Deref,
-        DerefMut,
-    },
+    ops::{Deref, DerefMut},
     pin::Pin,
 };
 
 #[cfg(feature = "stm32l0x2")]
-use as_slice::{
-    AsMutSlice,
-    AsSlice,
-};
+use as_slice::{AsMutSlice, AsSlice};
 
 #[cfg(feature = "stm32l0x2")]
 pub use crate::{
     dma,
-    gpio::gpiob::{
-        PB6,
-        PB7,
-    },
+    gpio::gpiob::{PB6, PB7},
     pac::USART1,
 };
 
@@ -177,7 +168,6 @@ impl_pins!(
     USART2, PA2,  PA3,  AF4;
     USART2, PA14, PA15, AF4;
 );
-
 
 /// Serial abstraction
 pub struct Serial<USART> {
