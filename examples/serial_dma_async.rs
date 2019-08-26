@@ -2,24 +2,25 @@
 #![no_std]
 
 extern crate panic_halt;
-use core::fmt::Write;
-use core::pin::Pin;
-use cortex_m::interrupt;
 
+use core::pin::Pin;
 use cortex_m_rt::entry;
+use heapless::consts::*;
+use heapless::spsc::Queue;
 use stm32l0xx_hal::{
     dma::{self, DMA},
-    pac::{
-        self, Interrupt
-    },
+    pac::self,
     prelude::*,
     rcc::Config,
     serial,
 };
 
+static mut BUFFER_1: [u8; 1] = [0; 1];
+static mut BUFFER_2: [u8; 1] = [0; 1];
+type DmaBuffer = &'static mut [u8; 1];
+
 type RxTarget = serial::Rx<serial::USART2>;
 type RxChannel = dma::Channel5;
-type DmaBuffer = &'static mut [u8; 1];
 type RxTransfer = dma::Transfer<RxTarget, RxChannel, DmaBuffer, dma::Started>;
 
 enum RxState {
@@ -36,23 +37,15 @@ enum TxState {
     TRANSMITTING(TxTransfer),
 }
 
-use heapless::consts::*;
-use heapless::spsc::Queue;
-
-static mut BUFFER_1: [u8; 1] = [0; 1];
-static mut BUFFER_2: [u8; 1] = [0; 1];
-
-
 #[entry]
 fn main() -> ! {
-    let mut cp = pac::CorePeripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
     let mut rcc = dp.RCC.freeze(Config::hsi16());
     let mut dma = DMA::new(dp.DMA1, &mut rcc);
     let gpioa = dp.GPIOA.split(&mut rcc);
 
-    let (mut tx, rx) = dp
+    let (tx, rx) = dp
     .USART2
     .usart(
         (gpioa.pa2, gpioa.pa3),
@@ -62,94 +55,81 @@ fn main() -> ! {
     .unwrap()
     .split();
 
-    let mut rx_buffers: Queue<Pin<DmaBuffer>, U32> = Queue::new();
-    writeln!(tx, "Rx buffers capacity: {}\r", rx_buffers.capacity());
+    // we only have two elements for each queue, so U2 is fine (size is max 2)
+    let mut rx_buffers: Queue<Pin<DmaBuffer>, U2> = Queue::new();
+    let mut tx_buffers: Queue<Pin<DmaBuffer>, U2> = Queue::new();
 
-    // putting the same pointer in here twice would be a big mistake
+    // enqueue as many buffers as available into rx_buffers
     unsafe {
+        // putting the same pointer in here twice would be a big mistake
         rx_buffers.enqueue(Pin::new(&mut BUFFER_1)).unwrap();;
         rx_buffers.enqueue(Pin::new(&mut BUFFER_2)).unwrap();;
     }
 
-    // since we echo out received buffers from DMA, they are already pinned
-    let mut tx_buffers: Queue<Pin<DmaBuffer>, U4> = Queue::new();
-
-
-
     let dma_handle = &mut dma.handle;
-    let rx_channel = dma.channels.channel5;
-    //let tx_channel = dma.channels.channel4;
-
-    let mut rx_state = RxState::READY(rx, rx_channel);
+    let mut rx_state = RxState::READY(rx, dma.channels.channel5);
+    let mut tx_state = TxState::READY(tx, dma.channels.channel4);
 
     loop {
         rx_state = match rx_state {
             RxState::READY(rx, channel) => {
                 if let Some(buffer) = rx_buffers.dequeue() {
-                    writeln!(tx, "Setting up received. remaining buffers: {}\r", rx_buffers.len() );
-
-                    interrupt::free(|_| {
-                        cp.NVIC.enable(Interrupt::DMA1_CHANNEL4_7);
-
-                        // prepare transfer transaction
-                        let mut transfer = rx.read_all(dma_handle, buffer, channel);
-
-                        transfer.enable_interrupts(dma::Interrupts {
-                            transfer_error: true,
-                            transfer_complete: true,
-                            ..dma::Interrupts::default()
-                        });
-
-                        RxState::RECEIVING(transfer.start())
-                    })
+                    // prepare transfer transaction
+                    let mut transfer = rx.read_all(dma_handle, buffer, channel);
+                    transfer.enable_interrupts(dma::Interrupts {
+                        transfer_error: true,
+                        transfer_complete: true,
+                        ..dma::Interrupts::default()
+                    });
+                    // store it in state
+                    RxState::RECEIVING(transfer.start())
                 } else {
-                    writeln!(tx, "BOO\r");
-
                     panic!("Not enough buffers allocated\r");
                 }
             }
             RxState::RECEIVING(transfer) => {
                 if !transfer.is_active(){
-                    write!(tx, "Received byte: ");
-
                     let res = transfer.wait().unwrap();
-                    write!(tx, "{}\r\n", res.buffer[0]);
-                    rx_buffers.enqueue(res.buffer);
-                    //tx_buffers.enqueue(res.buffer).unwrap();
+                    // pass the buffer to the tx queue
+                    tx_buffers.enqueue(res.buffer).unwrap();
+                    // set back ready state
                     RxState::READY(res.target, res.channel)
+                    // next loop will setup next receive DMA
                 } else {
-                    //writeln!(tx, "Spinning");
                     RxState::RECEIVING(transfer)
                 }
             }
         };
 
-        // tx_state = match tx_state {
-        //     TxState::READY(tx, channel) => {
-        //         if let Some(buffer) = tx_buffers.dequeue() {
-        //             let mut transfer = tx.write_all(dma_handle, buffer, channel);
-
-        //             transfer.enable_interrupts(dma::Interrupts {
-        //                 transfer_error: true,
-        //                 transfer_complete: true,
-        //                 ..dma::Interrupts::default()
-        //             });
-        //             TxState::TRANSMITTING(transfer.start())
-        //         } else {
-        //             TxState::READY(tx, channel)
-        //         }
-        //     }
-        //     TxState::TRANSMITTING(transfer) => {
-        //         if !transfer.is_active(){
-        //             let res = transfer.wait().unwrap();
-        //             // give the buffer back to the rx_buffer queue
-        //             rx_buffers.enqueue(res.buffer).unwrap();
-        //             TxState::READY(res.target, res.channel)
-        //         } else {
-        //             TxState::TRANSMITTING(transfer)
-        //         }
-        //     }
-        // };
+        tx_state = match tx_state {
+            TxState::READY(tx, channel) => {
+                if let Some(buffer) = tx_buffers.dequeue() {
+                    // prepare transfer transaction
+                    let mut transfer = tx.write_all(dma_handle, buffer, channel);
+                    transfer.enable_interrupts(dma::Interrupts {
+                        transfer_error: true,
+                        transfer_complete: true,
+                        ..dma::Interrupts::default()
+                    });
+                    // store it in state
+                    TxState::TRANSMITTING(transfer.start())
+                } else {
+                    TxState::READY(tx, channel)
+                }
+            }
+            TxState::TRANSMITTING(transfer) => {
+                if !transfer.is_active(){
+                    let res = transfer.wait().unwrap();
+                    // give the buffer back to the rx_buffer queue
+                    rx_buffers.enqueue(res.buffer).unwrap();
+                    // set self back to ready state
+                    TxState::READY(res.target, res.channel)
+                    // next loop around will check for another buffer
+                } else {
+                    TxState::TRANSMITTING(transfer)
+                }
+            }
+        };
     }
     
 }
