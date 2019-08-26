@@ -161,7 +161,7 @@ where
     /// This function will return immediately, if [`Transfer::is_active`]
     /// returns `false`.
     pub fn wait(self) -> Result<TransferResources<T, C, B>, (TransferResources<T, C, B>, Error)> {
-        while self.is_active() {
+        while self.res.channel.clear_complete() {
             if self.res.channel.error_occured() {
                 return Err((self.res, Error));
             }
@@ -241,6 +241,7 @@ pub trait Channel: Sized {
     fn enable_interrupts(&self, interrupts: Interrupts);
     fn start(&self);
     fn is_active(&self) -> bool;
+    fn clear_complete(&self) -> bool;
     fn error_occured(&self) -> bool;
 }
 
@@ -370,12 +371,25 @@ macro_rules! impl_channel {
                     let dma = unsafe { &*pac::DMA1::ptr() };
 
                     if dma.isr.read().$tcif().is_complete() {
-                        dma.ifcr.write(|w| w.$ctcif().set_bit());
-                        dma.$ccr.modify(|_, w| w.en().disabled());
+                        // dma.ifcr.write(|w| w.$ctcif().set_bit());
+                        // dma.$ccr.modify(|_, w| w.en().disabled());
                         false
                     }
                     else {
                         true
+                    }
+                }
+
+                fn clear_complete(&self) -> bool {
+                    let dma = unsafe { &*pac::DMA1::ptr() };
+
+                    if dma.isr.read().$tcif().is_complete() {
+                        dma.ifcr.write(|w| w.$ctcif().set_bit());
+                        dma.$ccr.modify(|_, w| w.en().disabled());
+                        true
+                    }
+                    else {
+                        false
                     }
                 }
 

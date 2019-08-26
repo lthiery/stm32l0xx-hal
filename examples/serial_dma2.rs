@@ -69,15 +69,19 @@ fn main() -> ! {
         transfer = match transfer {
             None => None,
             Some(xfer) => {
-                let res = xfer.wait().unwrap();
+                if xfer.is_active() {
+                    Some(xfer)
+                }
+                else {
+                    let res = xfer.wait().unwrap();
 
-                // Re-assign reception resources to their variables, so they're
-                // available again in the next loop iteration.
-                maybe_rx = Some(res.target);
-                maybe_channel = Some(res.channel);
-                write!(tx, "{}", res.buffer.as_ref()[0] as char);
-                buffer = Some(res.buffer);
-                None
+                    maybe_rx = Some(res.target);
+                    maybe_channel = Some(res.channel);
+                    write!(tx, "{}", res.buffer.as_ref()[0] as char);
+                    buffer = Some(res.buffer);
+                    None
+                }
+
             }
         }
        
