@@ -120,6 +120,14 @@ macro_rules! timers {
                     self.tim.dier.write(|w| w.uie().set_bit());
                 }
 
+                /// Starts listening
+                pub fn reset(&mut self) {
+                    // pause
+                    self.tim.cr1.modify(|_, w| w.cen().clear_bit());
+                    // reset counter
+                    self.tim.cnt.reset();
+                }
+
                 /// Stops listening
                 pub fn unlisten(&mut self) {
                     self.tim.dier.write(|w| w.uie().clear_bit());
