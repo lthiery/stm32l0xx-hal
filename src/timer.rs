@@ -126,6 +126,8 @@ macro_rules! timers {
                     self.tim.cr1.modify(|_, w| w.cen().clear_bit());
                     // reset counter
                     self.tim.cnt.reset();
+                    // continue
+                    self.tim.cr1.modify(|_, w| w.cen().set_bit());
                 }
 
                 /// Stops listening
