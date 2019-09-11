@@ -12,10 +12,6 @@ use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
 use core::ops::DerefMut;
 
-static mut USR_BTN: Mutex<
-    RefCell<Option<hal::gpio::gpiob::PB5<hal::gpio::Input<hal::gpio::Floating>>>>,
-> = Mutex::new(RefCell::new(None));
-
 #[derive(Debug)]
 pub enum AppEvent {
     ReadAdc,
@@ -31,6 +27,7 @@ const APP: () = {
 
     static mut BATT_ANALOG: hal::gpio::gpioa::PA5<hal::gpio::Analog> = ();
     static mut ADC: stm32l0xx_hal::adc::Adc = ();
+    static mut BTN: Option<hal::gpio::gpiob::PB5<hal::gpio::Input<hal::gpio::Floating>>> = None;
 
     #[init]
     fn init() -> init::LateResources {
