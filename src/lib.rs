@@ -33,7 +33,7 @@ pub mod prelude;
 pub mod pwm;
 pub mod pwr;
 pub mod rcc;
-#[cfg(feature = "stm32l0x1")]
+#[cfg(not(feature = "stm32l0x1"))]
 pub mod rng;
 pub mod rtc;
 pub mod serial;

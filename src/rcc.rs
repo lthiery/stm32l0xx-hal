@@ -1,3 +1,4 @@
+#[cfg(not(feature = "stm32l0x1"))]
 use crate::pac::RCC;
 use crate::time::{Hertz, U32Ext};
 
