@@ -118,6 +118,10 @@ name = "rtc"
 required-features = ["stm32l0x2"]
 
 [[example]]
+name = "rng"
+required-features = ["stm32l0x2"]
+
+[[example]]
 name = "serial_dma"
 required-features = ["stm32l0x2"]
 
