@@ -1,6 +1,6 @@
 #![no_main]
 #![no_std]
-//#![deny(warnings)]
+#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
@@ -8,10 +8,9 @@
 extern crate panic_halt;
 
 use cortex_m_rt::entry;
-use stm32l0xx_hal::{pac, prelude::*, rng, rcc::Config, syscfg::SYSCFG};
+use stm32l0xx_hal::{pac, prelude::*, rcc::Config, syscfg::SYSCFG};
 
 use core::fmt::Write;
-use stm32l0xx_hal::serial;
 use stm32l0xx_hal::rng::Rng;
 #[entry]
 fn main() -> ! {
